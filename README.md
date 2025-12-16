@@ -83,7 +83,7 @@ Se você tiver problemas para compilar localmente, use os scripts e o workflow d
 - Script CI/local: `./scripts/ci_build_android.sh` — garante arquivos da plataforma e executa o build.
 
 - Script para configurar o SDK local: `./scripts/set_local_sdk.sh /path/to/Android/Sdk` (ou use `ANDROID_SDK_ROOT` env var).
-
+- Script tudo-em-um: `./scripts/auto_ci_build.sh` — cria/atualiza a branch `feat/android-ci`, abre o PR (se necessário), dispara o workflow `android-build.yml`, espera a execução e baixa o artefato APK localmente em `./artifacts` (requer `gh` autenticado).
 Se quiser, posso executar o workflow localmente aqui (tentar `flutter create` e `flutter build`) ou abrir um PR com ajustes adicionais; me diga qual opção prefere.
 
 ---
