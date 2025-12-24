@@ -28,8 +28,6 @@ chmod +x automate_all.sh
  * Mission Control: Monitoramento de rádio e fila de mensagens em tempo real.
 👥 Contribuição e Licença
 Projeto Open Source sob licença MIT.
-Dono do Projeto: Maciel (@thiagosilm)
-Arquitetura: Gemini
 
 ---
 
