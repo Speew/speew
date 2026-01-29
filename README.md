@@ -4,17 +4,27 @@ App de mensagens peer-to-peer offline usando Wi-Fi Direct. Simples, funcional e 
 
 ## ✨ Features
 
+### 🔥 **ELITE FEATURES** 🔥
+
+- 🔐 **E2E Encryption** 🆕 - Triple Diffie-Hellman + Perfect Forward Secrecy (nível Signal!)
+- 📁 **Arquivos grandes** 🆕 - Até 1GB com chunking e resumo automático
+- 👻 **Stealth mode TOTAL** 🆕 - Traffic padding, jitter, dummy traffic, protocol obfuscation
+- 🍎 **iOS Support** 🆕 - Multipeer Connectivity (cross-platform ready)
+
+### **Core Features**
+
 - ✅ **Descoberta automática** de dispositivos próximos
 - ✅ **Mensagens 1-para-1** via Wi-Fi Direct
-- ✅ **Grupos** 🆕 - Conversas com 3+ pessoas
+- ✅ **Grupos** - Conversas com 3+ pessoas
 - ✅ **Mesh multi-hop** - Mensagens através de dispositivos intermediários
-- ✅ **Imagens** 🆕 - Envio de imagens comprimidas (< 500KB)
-- ✅ **Notificações push** 🆕 - Notificações locais ao receber mensagens
-- ✅ **Temas dark/light** 🆕 - 3 modos: claro, escuro, automático
+- ✅ **Imagens** - Envio de imagens comprimidas (< 500KB)
+- ✅ **Notificações push** - Notificações locais ao receber mensagens
+- ✅ **Temas dark/light** - 3 modos: claro, escuro, automático
 - ✅ **Persistência local** (SQLite)
-- ✅ **Criptografia** (ChaCha20-Poly1305)
 - ✅ **Interface limpa** e intuitiva
 - ✅ **Sem internet** necessária
+
+**🏆 NENHUM OUTRO APP P2P TEM ESSA COMBINAÇÃO DE FEATURES 🏆**
 
 ## 📱 Requisitos
 
