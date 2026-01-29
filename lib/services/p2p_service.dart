@@ -2,8 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:nearby_connections/nearby_connections.dart';
 import '../models/peer.dart';
+import '../models/mesh_route.dart';
+import 'mesh_routing_service.dart';
+import '../core/utils.dart';
 
 class P2PService {
+  final MeshRoutingService _meshRouting = MeshRoutingService();
   final Nearby _nearby = Nearby();
   final StreamController<Peer> _discoveredPeersController =
       StreamController<Peer>.broadcast();
@@ -18,6 +22,7 @@ class P2PService {
   String? _myDeviceId;
   bool _isAdvertising = false;
   bool _isDiscovering = false;
+  bool _meshEnabled = false; // Mesh multi-hop habilitado
 
   // Getters
   Stream<Peer> get discoveredPeersStream => _discoveredPeersController.stream;
@@ -28,6 +33,107 @@ class P2PService {
   List<String> get connectedPeerIds => List.from(_connectedPeers);
   bool get isAdvertising => _isAdvertising;
   bool get isDiscovering => _isDiscovering;
+  bool get isMeshEnabled => _meshEnabled;
+
+  // Inicializar mesh routing
+  void initializeMesh(String deviceId) {
+    _myDeviceId = deviceId;
+    _meshRouting.initialize(deviceId);
+    _meshEnabled = true;
+    
+    // Escutar pacotes outgoing do mesh routing
+    _meshRouting.outgoingPacketsStream.listen(_sendMeshPacket);
+    
+    // Escutar pacotes entregues
+    _meshRouting.deliveredPacketsStream.listen(_handleDeliveredPacket);
+    
+    DebugUtils.log('Mesh routing initialized', tag: 'P2P');
+  }
+
+  // Enviar mensagem via mesh
+  Future<bool> sendMeshMessage(String destinationId, String content) async {
+    if (!_meshEnabled) {
+      DebugUtils.log('Mesh not enabled, using direct send', tag: 'P2P');
+      return await sendMessage(destinationId, content);
+    }
+
+    return await _meshRouting.sendMessage(
+      destinationId: destinationId,
+      content: content,
+    );
+  }
+
+  // Enviar pacote mesh pela rede
+  Future<void> _sendMeshPacket(MeshPacket packet) async {
+    try {
+      // Determinar próximo hop
+      final nextHop = _getNextHop(packet);
+      
+      if (nextHop == null) {
+        DebugUtils.log('No next hop for packet, broadcasting', tag: 'P2P');
+        // Broadcast para todos os peers conectados
+        for (final peerId in _connectedPeers) {
+          await _sendPacketToPeer(peerId, packet);
+        }
+      } else {
+        // Enviar para próximo hop específico
+        await _sendPacketToPeer(nextHop, packet);
+      }
+    } catch (e) {
+      DebugUtils.logError('Error sending mesh packet', error: e);
+    }
+  }
+
+  // Enviar pacote para um peer específico
+  Future<void> _sendPacketToPeer(String peerId, MeshPacket packet) async {
+    final payload = jsonEncode({
+      'type': 'mesh_packet',
+      'packet': packet.toJson(),
+    });
+
+    await _nearby.sendBytesPayload(peerId, utf8.encode(payload));
+    DebugUtils.log('Sent mesh packet to $peerId', tag: 'P2P');
+  }
+
+  // Determinar próximo hop para um pacote
+  String? _getNextHop(MeshPacket packet) {
+    // Verificar se destino está diretamente conectado
+    if (_connectedPeers.contains(packet.destinationId)) {
+      return packet.destinationId;
+    }
+
+    // Consultar tabela de rotas
+    final route = _meshRouting.routingTable[packet.destinationId];
+    if (route != null && route.hops.isNotEmpty) {
+      // Retornar primeiro hop da rota
+      return route.hops.first;
+    }
+
+    // Sem rota conhecida
+    return null;
+  }
+
+  // Processar pacote mesh entregue
+  void _handleDeliveredPacket(MeshPacket packet) {
+    DebugUtils.log('Mesh packet delivered: ${packet.id}', tag: 'P2P');
+    
+    // Adicionar à stream de mensagens para ser processado pelo ChatProvider
+    _messagesController.add({
+      'sender_id': packet.senderId,
+      'content': packet.content,
+      'timestamp': packet.timestamp.millisecondsSinceEpoch,
+      'via_mesh': true,
+      'hop_count': packet.hopCount,
+    });
+  }
+
+  // Obter estatísticas mesh
+  Map<String, dynamic> getMeshStatistics() {
+    if (!_meshEnabled) {
+      return {'enabled': false};
+    }
+    return _meshRouting.getStatistics();
+  }
 
   // Iniciar como servidor (advertising)
   Future<bool> startAdvertising(String userName) async {
@@ -201,11 +307,23 @@ class P2PService {
         final data = utf8.decode(payload.bytes!);
         final decoded = jsonDecode(data) as Map<String, dynamic>;
         
+        // Verificar se é pacote mesh
+        if (decoded['type'] == 'mesh_packet') {
+          if (_meshEnabled) {
+            final packetData = decoded['packet'] as Map<String, dynamic>;
+            final packet = MeshPacket.fromJson(packetData);
+            _meshRouting.receivePacket(packet);
+          }
+          return;
+        }
+        
+        // Mensagem normal (não-mesh)
         if (decoded['type'] == 'message') {
           _messagesController.add({
             'sender_id': endpointId,
             'content': decoded['content'],
             'timestamp': decoded['timestamp'],
+            'via_mesh': false,
           });
         }
       } catch (e) {
@@ -225,6 +343,7 @@ class P2PService {
   void dispose() {
     stopAdvertising();
     stopDiscovery();
+    _meshRouting.dispose();
     _discoveredPeersController.close();
     _messagesController.close();
     _connectionStatusController.close();

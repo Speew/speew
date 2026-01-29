@@ -2,9 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'providers/chat_provider.dart';
+import 'services/theme_provider.dart';
+import 'services/notification_service.dart';
 import 'ui/screens/home_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Inicializar notificações
+  await NotificationService.initialize();
+  
   runApp(const SpeewApp());
 }
 
@@ -13,16 +20,22 @@ class SpeewApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => ChatProvider(),
-      child: MaterialApp(
-        title: 'Speew MVP',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
-          useMaterial3: true,
-        ),
-        home: const SetupScreen(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ChatProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()..loadThemePreference()),
+      ],
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, _) {
+          return MaterialApp(
+            title: 'Speew MVP',
+            debugShowCheckedModeBanner: false,
+            theme: AppThemes.lightTheme,
+            darkTheme: AppThemes.darkTheme,
+            themeMode: themeProvider.themeMode,
+            home: const SetupScreen(),
+          );
+        },
       ),
     );
   }
@@ -38,6 +51,7 @@ class SetupScreen extends StatefulWidget {
 class _SetupScreenState extends State<SetupScreen> {
   final TextEditingController _nameController = TextEditingController();
   bool _isLoading = false;
+  bool _enableMesh = false; // Toggle para mesh multi-hop
   String? _errorMessage;
 
   @override
@@ -124,7 +138,7 @@ class _SetupScreenState extends State<SetupScreen> {
 
       // Inicializar ChatProvider
       final chatProvider = context.read<ChatProvider>();
-      await chatProvider.initialize(name);
+      await chatProvider.initialize(name, enableMesh: _enableMesh);
 
       // Navegar para Home
       if (mounted) {
@@ -191,6 +205,23 @@ class _SetupScreenState extends State<SetupScreen> {
                 ),
                 textCapitalization: TextCapitalization.words,
                 onSubmitted: (_) => _initialize(),
+              ),
+              const SizedBox(height: 24),
+
+              // Toggle Mesh Multi-hop
+              Card(
+                child: SwitchListTile(
+                  title: const Text('Mesh Multi-hop'),
+                  subtitle: const Text(
+                    'Permite mensagens através de múltiplos dispositivos intermediários',
+                  ),
+                  value: _enableMesh,
+                  onChanged: (value) {
+                    setState(() {
+                      _enableMesh = value;
+                    });
+                  },
+                ),
               ),
               const SizedBox(height: 24),
 

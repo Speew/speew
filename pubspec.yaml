@@ -30,6 +30,17 @@ dependencies:
   
   # Formatação de datas
   intl: ^0.18.1
+  
+  # Imagens
+  image: ^4.1.7
+  image_picker: ^1.0.7
+  path_provider: ^2.1.2
+  
+  # Notificações
+  flutter_local_notifications: ^16.3.2
+  
+  # Shared Preferences (para tema)
+  shared_preferences: ^2.2.2
 
 dev_dependencies:
   flutter_test:

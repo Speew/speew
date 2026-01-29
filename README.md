@@ -6,6 +6,11 @@ App de mensagens peer-to-peer offline usando Wi-Fi Direct. Simples, funcional e 
 
 - ✅ **Descoberta automática** de dispositivos próximos
 - ✅ **Mensagens 1-para-1** via Wi-Fi Direct
+- ✅ **Grupos** 🆕 - Conversas com 3+ pessoas
+- ✅ **Mesh multi-hop** - Mensagens através de dispositivos intermediários
+- ✅ **Imagens** 🆕 - Envio de imagens comprimidas (< 500KB)
+- ✅ **Notificações push** 🆕 - Notificações locais ao receber mensagens
+- ✅ **Temas dark/light** 🆕 - 3 modos: claro, escuro, automático
 - ✅ **Persistência local** (SQLite)
 - ✅ **Criptografia** (ChaCha20-Poly1305)
 - ✅ **Interface limpa** e intuitiva
@@ -56,10 +61,34 @@ flutter run -d <device-id-2>
 
 1. Abra o app nos 2 celulares
 2. Digite seu nome na tela inicial
-3. Permita todas as permissões
-4. Aguarde a descoberta automática
-5. Toque no peer para conectar
-6. Comece a conversar!
+3. **🆕 Ative "Mesh Multi-hop" se quiser retransmissão**
+4. Permita todas as permissões
+5. Aguarde a descoberta automática
+6. Toque no peer para conectar
+7. Comece a conversar!
+
+### 6. Testar Mesh Multi-hop (Opcional)
+
+Para testar mesh, você precisa de **3+ celulares**:
+
+```
+Device A ←→ Device B ←→ Device C
+
+Com mesh ativo:
+- A pode enviar mensagem para C através de B
+- Alcance estendido: ~500m (5 hops × 100m)
+```
+
+## 🕸️ Mesh Multi-hop
+
+O **Mesh Multi-hop** permite que mensagens sejam retransmitidas através de dispositivos intermediários:
+
+- **Alcance estendido**: Até 5 dispositivos intermediários
+- **Auto-descoberta**: Rotas são descobertas automaticamente
+- **Resiliente**: Se um caminho falha, outro é encontrado
+- **Visualização**: Veja estatísticas das rotas na tela de Mesh
+
+**Documentação completa:** Veja `MESH.md`
 
 ## 📂 Estrutura do Projeto
 
@@ -142,7 +171,6 @@ dependencies:
 
 Por ser um MVP focado, as seguintes features **não** estão incluídas:
 
-- ❌ Mesh multi-hop (mensagens pulando múltiplos nós)
 - ❌ Grupos de chat
 - ❌ Transferência de arquivos grandes
 - ❌ Voice messages
@@ -203,13 +231,14 @@ Wi-Fi Direct pode ser instável em alguns dispositivos. Se não funcionar:
 - [ ] Envio de imagens pequenas
 - [ ] Notificações push
 - [ ] Temas dark/light
+- [ ] Otimizações de mesh routing
 
 ### v2.0 (Futuro)
 
-- [ ] Mesh multi-hop
 - [ ] Suporte iOS (Multipeer Connectivity)
 - [ ] Transferência de arquivos grandes
 - [ ] Criptografia E2E com troca de chaves Diffie-Hellman
+- [ ] Mesh routing adaptativo
 
 ## 🤝 Contribuindo
 

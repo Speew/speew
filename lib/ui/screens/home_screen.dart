@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/chat_provider.dart';
+import '../../services/theme_provider.dart';
 import '../../models/peer.dart';
 import 'chat_screen.dart';
+import 'mesh_stats_screen.dart';
+import 'create_group_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -18,6 +22,37 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('Speew MVP'),
         actions: [
+          // Botão de estatísticas mesh (só aparece se mesh estiver ativo)
+          Consumer<ChatProvider>(
+            builder: (context, provider, _) {
+              if (!provider.isMeshEnabled) return const SizedBox.shrink();
+              
+              return IconButton(
+                icon: const Icon(Icons.router),
+                tooltip: 'Estatísticas Mesh',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const MeshStatisticsScreen(),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Configurações',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const SettingsScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.info_outline),
             onPressed: _showAboutDialog,
@@ -63,8 +98,16 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showRefreshDialog,
-        child: const Icon(Icons.refresh),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const CreateGroupScreen(),
+            ),
+          );
+        },
+        tooltip: 'Criar Grupo',
+        child: const Icon(Icons.group_add),
       ),
     );
   }
