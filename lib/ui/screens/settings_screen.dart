@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../services/theme_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../services/notification_service.dart';
 
@@ -15,7 +15,7 @@ class SettingsScreen extends StatelessWidget {
       ),
       body: ListView(
         children: [
-          // Seção de Aparência
+          
           const _SectionHeader(title: 'Aparência'),
           
           Consumer<ThemeProvider>(
@@ -62,7 +62,6 @@ class SettingsScreen extends StatelessWidget {
 
           const Divider(),
 
-          // Seção de Rede
           const _SectionHeader(title: 'Rede'),
           
           Consumer<ChatProvider>(
@@ -80,7 +79,6 @@ class SettingsScreen extends StatelessWidget {
 
           const Divider(),
 
-          // Seção de Notificações
           const _SectionHeader(title: 'Notificações'),
           
           ListTile(
@@ -112,7 +110,6 @@ class SettingsScreen extends StatelessWidget {
 
           const Divider(),
 
-          // Seção Sobre
           const _SectionHeader(title: 'Sobre'),
           
           const ListTile(
@@ -125,7 +122,7 @@ class SettingsScreen extends StatelessWidget {
             subtitle: const Text('README, MESH, ARQUITETURA'),
             trailing: const Icon(Icons.description),
             onTap: () {
-              // TODO: Abrir documentação
+              
             },
           ),
 

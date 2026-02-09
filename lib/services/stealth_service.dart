@@ -3,32 +3,23 @@ import 'dart:math';
 import 'dart:typed_data';
 import '../core/utils.dart';
 
-/// Serviço Stealth - Torna comunicação indetectável
-/// Features:
-/// - Traffic padding (ofuscar tamanho de mensagens)
-/// - Timing jitter (ofuscar padrões temporais)
-/// - Dummy traffic (gerar tráfego falso)
-/// - Message fragmentation (quebrar padrões)
-/// - Protocol obfuscation (parecer tráfego comum)
 class StealthService {
   final Random _random = Random.secure();
   bool _isEnabled = false;
   Timer? _dummyTrafficTimer;
-  
-  // Configurações
+
   static const int minPaddingSize = 16;
   static const int maxPaddingSize = 512;
   static const int minJitterMs = 10;
   static const int maxJitterMs = 500;
-  static const int dummyTrafficIntervalMs = 5000; // 5 segundos
-  static const double dummyTrafficProbability = 0.3; // 30% chance
+  static const int dummyTrafficIntervalMs = 5000; 
+  static const double dummyTrafficProbability = 0.3; 
 
   final StreamController<StealthPacket> _outgoingController =
       StreamController<StealthPacket>.broadcast();
 
   Stream<StealthPacket> get outgoingStream => _outgoingController.stream;
 
-  /// Ativar modo stealth
   void enable() {
     if (_isEnabled) return;
     
@@ -38,7 +29,6 @@ class StealthService {
     DebugUtils.log('Stealth mode ENABLED', tag: 'STEALTH');
   }
 
-  /// Desativar modo stealth
   void disable() {
     if (!_isEnabled) return;
     
@@ -48,7 +38,6 @@ class StealthService {
     DebugUtils.log('Stealth mode DISABLED', tag: 'STEALTH');
   }
 
-  /// Processar mensagem de saída (adicionar ofuscação)
   Future<StealthPacket> processOutgoing(
     String peerId,
     Uint8List data,
@@ -61,16 +50,12 @@ class StealthService {
       );
     }
 
-    // 1. Fragmentar se necessário
     final fragments = _fragmentData(data);
 
-    // 2. Adicionar padding para ofuscar tamanho
     final paddedFragments = fragments.map(_addPadding).toList();
 
-    // 3. Adicionar jitter temporal
     await _applyJitter();
 
-    // 4. Ofuscar protocolo (adicionar headers falsos)
     final obfuscated = _obfuscateProtocol(paddedFragments.first);
 
     return StealthPacket(
@@ -82,30 +67,25 @@ class StealthService {
     );
   }
 
-  /// Processar mensagem de entrada (remover ofuscação)
   Future<Uint8List?> processIncoming(StealthPacket packet) async {
     if (!_isEnabled) {
       return packet.data;
     }
 
-    // Verificar se é dummy traffic
     if (packet.isDummy) {
       DebugUtils.log('Dummy traffic received (ignored)', tag: 'STEALTH');
       return null;
     }
 
-    // 1. Remover ofuscação de protocolo
     final deobfuscated = _deobfuscateProtocol(packet.data);
 
-    // 2. Remover padding
     final unpadded = _removePadding(deobfuscated);
 
     return unpadded;
   }
 
-  /// Fragmentar dados em chunks menores
   List<Uint8List> _fragmentData(Uint8List data) {
-    const fragmentSize = 1024; // 1KB por fragmento
+    const fragmentSize = 1024; 
     
     if (data.length <= fragmentSize) {
       return [data];
@@ -125,35 +105,28 @@ class StealthService {
     return fragments;
   }
 
-  /// Adicionar padding aleatório
   Uint8List _addPadding(Uint8List data) {
-    // Tamanho de padding aleatório
+    
     final paddingSize = minPaddingSize + 
         _random.nextInt(maxPaddingSize - minPaddingSize);
 
-    // Gerar padding aleatório
     final padding = Uint8List(paddingSize);
     for (int i = 0; i < paddingSize; i++) {
       padding[i] = _random.nextInt(256);
     }
 
-    // Combinar: [tamanho_original(4 bytes)][dados][padding]
     final result = Uint8List(4 + data.length + paddingSize);
     final view = ByteData.view(result.buffer);
-    
-    // Escrever tamanho original
+
     view.setUint32(0, data.length);
-    
-    // Escrever dados
+
     result.setRange(4, 4 + data.length, data);
-    
-    // Escrever padding
+
     result.setRange(4 + data.length, result.length, padding);
 
     return result;
   }
 
-  /// Remover padding
   Uint8List _removePadding(Uint8List paddedData) {
     if (paddedData.length < 4) {
       return paddedData;
@@ -163,13 +136,12 @@ class StealthService {
     final originalSize = view.getUint32(0);
 
     if (originalSize > paddedData.length - 4) {
-      return paddedData; // Dados corrompidos
+      return paddedData; 
     }
 
     return paddedData.sublist(4, 4 + originalSize);
   }
 
-  /// Aplicar jitter temporal (delay aleatório)
   Future<void> _applyJitter() async {
     final jitterMs = minJitterMs + 
         _random.nextInt(maxJitterMs - minJitterMs);
@@ -177,9 +149,8 @@ class StealthService {
     await Future.delayed(Duration(milliseconds: jitterMs));
   }
 
-  /// Ofuscar protocolo (fazer parecer HTTP)
   Uint8List _obfuscateProtocol(Uint8List data) {
-    // Simular headers HTTP
+    
     const fakeHeader = 'GET /api/v1/sync HTTP/1.1\r\n'
                       'Host: api.example.com\r\n'
                       'User-Agent: Mozilla/5.0\r\n'
@@ -187,8 +158,7 @@ class StealthService {
                       '\r\n';
     
     final headerBytes = Uint8List.fromList(fakeHeader.codeUnits);
-    
-    // Combinar header fake + dados
+
     final result = Uint8List(headerBytes.length + data.length);
     result.setRange(0, headerBytes.length, headerBytes);
     result.setRange(headerBytes.length, result.length, data);
@@ -196,16 +166,15 @@ class StealthService {
     return result;
   }
 
-  /// Remover ofuscação de protocolo
   Uint8List _deobfuscateProtocol(Uint8List data) {
-    // Procurar por \r\n\r\n (fim de headers HTTP)
+    
     final headerEnd = _findHeaderEnd(data);
     
     if (headerEnd == -1) {
-      return data; // Sem headers fake
+      return data; 
     }
 
-    return data.sublist(headerEnd + 4); // +4 para pular \r\n\r\n
+    return data.sublist(headerEnd + 4); 
   }
 
   int _findHeaderEnd(Uint8List data) {
@@ -218,7 +187,6 @@ class StealthService {
     return -1;
   }
 
-  /// Iniciar geração de tráfego dummy
   void _startDummyTraffic() {
     _dummyTrafficTimer?.cancel();
     
@@ -228,32 +196,28 @@ class StealthService {
     );
   }
 
-  /// Parar geração de tráfego dummy
   void _stopDummyTraffic() {
     _dummyTrafficTimer?.cancel();
     _dummyTrafficTimer = null;
   }
 
-  /// Gerar tráfego dummy (falso)
   void _generateDummyTraffic() {
-    // Gerar com probabilidade configurada
+    
     if (_random.nextDouble() > dummyTrafficProbability) {
       return;
     }
 
-    // Gerar dados aleatórios
     final size = 256 + _random.nextInt(512);
     final dummyData = Uint8List(size);
     for (int i = 0; i < size; i++) {
       dummyData[i] = _random.nextInt(256);
     }
 
-    // Adicionar padding e ofuscação
     final padded = _addPadding(dummyData);
     final obfuscated = _obfuscateProtocol(padded);
 
     _outgoingController.add(StealthPacket(
-      peerId: 'broadcast', // Enviar para todos
+      peerId: 'broadcast', 
       data: obfuscated,
       isDummy: true,
     ));
@@ -261,7 +225,6 @@ class StealthService {
     DebugUtils.log('Dummy traffic generated', tag: 'STEALTH');
   }
 
-  /// Obter estatísticas de stealth
   Map<String, dynamic> getStatistics() {
     return {
       'enabled': _isEnabled,
@@ -278,7 +241,6 @@ class StealthService {
   }
 }
 
-/// Pacote stealth
 class StealthPacket {
   final String peerId;
   final Uint8List data;

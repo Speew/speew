@@ -6,35 +6,30 @@ import 'package:path/path.dart' as path;
 import '../core/utils.dart';
 
 class ImageService {
-  static const int maxImageSize = 800; // px
-  static const int maxImageSizeBytes = 500 * 1024; // 500KB
+  static const int maxImageSize = 800; 
+  static const int maxImageSizeBytes = 500 * 1024; 
   static const int jpegQuality = 85;
 
-  // Comprimir e salvar imagem
   Future<String?> processAndSaveImage(File imageFile) async {
     try {
-      // Ler bytes
-      final bytes = await imageFile.readAsBytes();
       
-      // Decodificar imagem
+      final bytes = await imageFile.readAsBytes();
+
       img.Image? image = img.decodeImage(bytes);
       if (image == null) {
         DebugUtils.logError('Failed to decode image');
         return null;
       }
 
-      // Redimensionar se necessário
       if (image.width > maxImageSize || image.height > maxImageSize) {
         image = _resizeImage(image, maxImageSize);
       }
 
-      // Comprimir como JPEG
       final compressed = img.encodeJpg(image, quality: jpegQuality);
 
-      // Verificar tamanho
       if (compressed.length > maxImageSizeBytes) {
         DebugUtils.log('Image too large after compression', tag: 'IMAGE');
-        // Tentar com qualidade menor
+        
         final moreCompressed = img.encodeJpg(image, quality: 70);
         
         if (moreCompressed.length > maxImageSizeBytes) {
@@ -52,25 +47,23 @@ class ImageService {
     }
   }
 
-  // Redimensionar imagem mantendo proporção
   img.Image _resizeImage(img.Image image, int maxSize) {
     final width = image.width;
     final height = image.height;
 
     if (width > height) {
-      // Landscape
+      
       final newWidth = maxSize;
       final newHeight = (height * maxSize / width).round();
       return img.copyResize(image, width: newWidth, height: newHeight);
     } else {
-      // Portrait
+      
       final newHeight = maxSize;
       final newWidth = (width * maxSize / height).round();
       return img.copyResize(image, width: newWidth, height: newHeight);
     }
   }
 
-  // Salvar imagem no storage local
   Future<String> _saveImage(Uint8List bytes) async {
     final directory = await getApplicationDocumentsDirectory();
     final imagesDir = Directory('${directory.path}/images');
@@ -89,7 +82,6 @@ class ImageService {
     return filepath;
   }
 
-  // Obter File de um path
   File? getImageFile(String? imagePath) {
     if (imagePath == null || imagePath.isEmpty) return null;
     
@@ -97,7 +89,6 @@ class ImageService {
     return file.existsSync() ? file : null;
   }
 
-  // Deletar imagem
   Future<bool> deleteImage(String imagePath) async {
     try {
       final file = File(imagePath);
@@ -113,7 +104,6 @@ class ImageService {
     }
   }
 
-  // Limpar imagens antigas (> 30 dias)
   Future<void> cleanOldImages() async {
     try {
       final directory = await getApplicationDocumentsDirectory();
@@ -140,7 +130,6 @@ class ImageService {
     }
   }
 
-  // Obter tamanho total das imagens
   Future<int> getTotalImagesSize() async {
     try {
       final directory = await getApplicationDocumentsDirectory();

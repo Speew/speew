@@ -3,8 +3,6 @@ import 'dart:typed_data';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../core/utils.dart';
 
-/// Serviço de chamadas de voz P2P
-/// Usa WebRTC com codec Opus para áudio de alta qualidade
 class VoiceCallService {
   RTCPeerConnection? _peerConnection;
   MediaStream? _localStream;
@@ -24,43 +22,36 @@ class VoiceCallService {
   CallState get currentState => _currentState;
   bool get isInCall => _currentState == CallState.connected;
 
-  /// Inicializar serviço
   Future<void> initialize() async {
     DebugUtils.log('Voice call service initialized', tag: 'VOICE');
   }
 
-  /// Iniciar chamada (caller)
   Future<Map<String, dynamic>> startCall() async {
     try {
       _updateState(CallState.calling);
 
-      // Obter stream de áudio local
       _localStream = await navigator.mediaDevices.getUserMedia({
         'audio': {
           'echoCancellation': true,
           'noiseSuppression': true,
           'autoGainControl': true,
-          'sampleRate': 48000, // Opus suporta 48kHz
+          'sampleRate': 48000, 
         },
         'video': false,
       });
 
-      // Criar peer connection
       _peerConnection = await createPeerConnection({
         'iceServers': [
-          {'urls': 'stun:stun.l.google.com:19302'} // Apenas para NAT traversal
+          {'urls': 'stun:stun.l.google.com:19302'} 
         ],
       });
 
-      // Adicionar tracks locais
       _localStream!.getTracks().forEach((track) {
         _peerConnection!.addTrack(track, _localStream!);
       });
 
-      // Configurar listeners
       _setupPeerConnectionListeners();
 
-      // Criar offer
       final offer = await _peerConnection!.createOffer({
         'offerToReceiveAudio': true,
         'offerToReceiveVideo': false,
@@ -81,12 +72,10 @@ class VoiceCallService {
     }
   }
 
-  /// Receber chamada (callee)
   Future<Map<String, dynamic>> answerCall(Map<String, dynamic> offer) async {
     try {
       _updateState(CallState.ringing);
 
-      // Obter stream local
       _localStream = await navigator.mediaDevices.getUserMedia({
         'audio': {
           'echoCancellation': true,
@@ -97,26 +86,22 @@ class VoiceCallService {
         'video': false,
       });
 
-      // Criar peer connection
       _peerConnection = await createPeerConnection({
         'iceServers': [
           {'urls': 'stun:stun.l.google.com:19302'}
         ],
       });
 
-      // Adicionar tracks
       _localStream!.getTracks().forEach((track) {
         _peerConnection!.addTrack(track, _localStream!);
       });
 
       _setupPeerConnectionListeners();
 
-      // Aplicar offer remoto
       await _peerConnection!.setRemoteDescription(
         RTCSessionDescription(offer['sdp'], offer['type']),
       );
 
-      // Criar answer
       final answer = await _peerConnection!.createAnswer({
         'offerToReceiveAudio': true,
         'offerToReceiveVideo': false,
@@ -139,7 +124,6 @@ class VoiceCallService {
     }
   }
 
-  /// Completar conexão (caller recebe answer)
   Future<void> completeConnection(Map<String, dynamic> answer) async {
     try {
       await _peerConnection!.setRemoteDescription(
@@ -153,7 +137,6 @@ class VoiceCallService {
     }
   }
 
-  /// Processar ICE candidate
   Future<void> addIceCandidate(Map<String, dynamic> candidate) async {
     try {
       await _peerConnection!.addCandidate(
@@ -168,15 +151,13 @@ class VoiceCallService {
     }
   }
 
-  /// Configurar listeners do peer connection
   void _setupPeerConnectionListeners() {
-    // ICE candidates
+    
     _peerConnection!.onIceCandidate = (candidate) {
-      // Enviar candidate para peer via P2P
+      
       DebugUtils.log('ICE candidate generated', tag: 'VOICE');
     };
 
-    // Track remoto (áudio do peer)
     _peerConnection!.onTrack = (event) {
       if (event.track.kind == 'audio') {
         _remoteStream = event.streams[0];
@@ -187,7 +168,6 @@ class VoiceCallService {
       }
     };
 
-    // Connection state
     _peerConnection!.onConnectionState = (state) {
       DebugUtils.log('Connection state: $state', tag: 'VOICE');
       
@@ -202,7 +182,6 @@ class VoiceCallService {
     };
   }
 
-  /// Monitorar qualidade da chamada
   void _startQualityMonitoring() {
     Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!isInCall) {
@@ -216,7 +195,6 @@ class VoiceCallService {
     });
   }
 
-  /// Analisar estatísticas da chamada
   void _analyzeStats(List<StatsReport> stats) {
     for (final report in stats) {
       if (report.type == 'inbound-rtp' && report.values['kind'] == 'audio') {
@@ -241,7 +219,6 @@ class VoiceCallService {
     }
   }
 
-  /// Mutar/desmutar microfone
   Future<void> toggleMute() async {
     if (_localStream == null) return;
 
@@ -253,13 +230,11 @@ class VoiceCallService {
     DebugUtils.log('Microphone ${audioTracks[0].enabled ? "unmuted" : "muted"}', tag: 'VOICE');
   }
 
-  /// Colocar em speaker
   Future<void> toggleSpeaker(bool enable) async {
     await Helper.setSpeakerphoneOn(enable);
     DebugUtils.log('Speaker ${enable ? "on" : "off"}', tag: 'VOICE');
   }
 
-  /// Encerrar chamada
   Future<void> endCall() async {
     _updateState(CallState.ended);
 
@@ -275,7 +250,6 @@ class VoiceCallService {
     DebugUtils.log('Call ended', tag: 'VOICE');
   }
 
-  /// Obter duração da chamada
   Duration _getCallDuration() {
     if (_callStartTime == null) return Duration.zero;
     return DateTime.now().difference(_callStartTime!);

@@ -1,8 +1,16 @@
+import 'package:flutter/foundation.dart';
+
 class AppConfig {
   // App Info
   static const String appName = 'Speew';
-  static const String appVersion = '1.0.0';
+  static const String appVersion = '2.0.0';
   static const String appTagline = 'Mensagens P2P Offline';
+  
+  // Initialization
+  static Future<void> load() async {
+    // Future: Load user preferences, check for updates, etc.
+    await Future.delayed(const Duration(milliseconds: 100));
+  }
   
   // P2P Configuration
   static const String serviceId = 'com.speew.p2p';
@@ -27,6 +35,7 @@ class AppConfig {
   static const int typingIndicatorTimeout = 3; // seconds
   static const bool enableAnimations = true;
   static const bool enableHapticFeedback = true;
+  static const Duration splashDuration = Duration(seconds: 2);
   
   // Network Configuration
   static const int maxRetries = 3;
@@ -40,7 +49,7 @@ class AppConfig {
   static const bool enableVibration = true;
   
   // Debug
-  static const bool enableDebugLogs = true;
+  static bool get enableDebugLogs => kDebugMode;
   static const bool enablePerformanceMonitoring = false;
   
   // Feature Flags

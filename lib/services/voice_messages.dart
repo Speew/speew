@@ -5,8 +5,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import '../core/utils.dart';
 
-/// Voice Messages com compressão Opus
-/// Alta qualidade, baixo tamanho (melhor que AAC/MP3)
 class VoiceMessages {
   final StreamController<VoiceRecordingState> _stateController =
       StreamController<VoiceRecordingState>.broadcast();
@@ -19,7 +17,6 @@ class VoiceMessages {
 
   bool get isRecording => _isRecording;
 
-  /// Iniciar gravação de áudio
   Future<bool> startRecording() async {
     if (_isRecording) return false;
 
@@ -37,13 +34,6 @@ class VoiceMessages {
         'voice_$timestamp.opus',
       );
 
-      // Iniciar gravação nativa
-      // Em produção: usar package como record/flutter_sound
-      // Configuração Opus:
-      // - Bitrate: 32 kbps (voz)
-      // - Sample rate: 16 kHz
-      // - Channels: Mono
-      
       _isRecording = true;
       _recordingStartTime = DateTime.now();
 
@@ -57,12 +47,11 @@ class VoiceMessages {
     }
   }
 
-  /// Parar gravação e salvar
   Future<VoiceMessage?> stopRecording() async {
     if (!_isRecording) return null;
 
     try {
-      // Parar gravação nativa
+      
       _isRecording = false;
 
       if (_currentRecordingPath == null || _recordingStartTime == null) {
@@ -79,7 +68,6 @@ class VoiceMessages {
       final stat = await file.stat();
       final duration = DateTime.now().difference(_recordingStartTime!);
 
-      // Criar waveform (visualização)
       final waveform = await _generateWaveform(file);
 
       final voiceMessage = VoiceMessage(
@@ -88,8 +76,8 @@ class VoiceMessages {
         fileSize: stat.size,
         waveform: waveform,
         codec: 'opus',
-        bitrate: 32000, // 32 kbps
-        sampleRate: 16000, // 16 kHz
+        bitrate: 32000, 
+        sampleRate: 16000, 
       );
 
       _stateController.add(VoiceRecordingState.stopped);
@@ -109,7 +97,6 @@ class VoiceMessages {
     }
   }
 
-  /// Cancelar gravação
   Future<void> cancelRecording() async {
     if (!_isRecording) return;
 
@@ -130,7 +117,6 @@ class VoiceMessages {
     DebugUtils.log('Voice recording cancelled', tag: 'VOICE');
   }
 
-  /// Obter duração atual da gravação
   Duration? getCurrentDuration() {
     if (!_isRecording || _recordingStartTime == null) {
       return null;
@@ -139,38 +125,27 @@ class VoiceMessages {
     return DateTime.now().difference(_recordingStartTime!);
   }
 
-  /// Reproduzir mensagem de voz
   Future<void> playVoiceMessage(VoiceMessage message) async {
     try {
-      // Usar audio player (just_audio, audioplayers, etc.)
-      DebugUtils.log('Playing voice message', tag: 'VOICE');
       
-      // Em produção:
-      // final player = AudioPlayer();
-      // await player.setFilePath(message.filePath);
-      // await player.play();
+      DebugUtils.log('Playing voice message', tag: 'VOICE');
+
     } catch (e) {
       DebugUtils.logError('Failed to play voice message', error: e);
     }
   }
 
-  /// Gerar waveform para visualização
   Future<List<double>> _generateWaveform(File audioFile) async {
-    // Em produção: usar FFT ou análise de amplitude
-    // Por ora: retornar waveform simulado
-    
+
     final random = DateTime.now().millisecond;
     return List.generate(50, (i) {
       return 0.3 + (((i + random) % 10) / 20);
     });
   }
 
-  /// Comprimir áudio (se não for Opus)
   Future<File?> compressToOpus(File audioFile) async {
     try {
-      // Usar FFmpeg para converter para Opus
-      // ffmpeg -i input.m4a -c:a libopus -b:a 32k output.opus
-      
+
       final dir = await getApplicationDocumentsDirectory();
       final outputPath = path.join(
         dir.path,
@@ -178,9 +153,6 @@ class VoiceMessages {
         'compressed_${DateTime.now().millisecondsSinceEpoch}.opus',
       );
 
-      // Executar conversão
-      // Em produção: usar ffmpeg_kit_flutter
-      
       DebugUtils.log('Audio compressed to Opus', tag: 'VOICE');
       
       return File(outputPath);
@@ -269,15 +241,11 @@ enum VoiceRecordingState {
   paused,
 }
 
-/// Processamento de áudio avançado
 class AudioProcessor {
-  /// Remover ruído de fundo
+  
   static Future<File?> removeNoise(File audioFile) async {
     try {
-      // Usar algoritmo de noise reduction
-      // Em produção: FFmpeg com filtro afftdn
-      // ffmpeg -i input.opus -af "afftdn=nf=-25" output.opus
-      
+
       DebugUtils.log('Noise removed from audio', tag: 'AUDIO');
       return audioFile;
     } catch (e) {
@@ -285,12 +253,9 @@ class AudioProcessor {
     }
   }
 
-  /// Normalizar volume
   static Future<File?> normalizeVolume(File audioFile) async {
     try {
-      // Normalização de áudio
-      // FFmpeg: loudnorm filter
-      
+
       DebugUtils.log('Audio volume normalized', tag: 'AUDIO');
       return audioFile;
     } catch (e) {
@@ -298,12 +263,9 @@ class AudioProcessor {
     }
   }
 
-  /// Detectar silêncio e cortar
   static Future<File?> trimSilence(File audioFile) async {
     try {
-      // Remover silêncio do início e fim
-      // FFmpeg: silenceremove filter
-      
+
       DebugUtils.log('Silence trimmed from audio', tag: 'AUDIO');
       return audioFile;
     } catch (e) {

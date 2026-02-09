@@ -1,3 +1,5 @@
+import 'message.dart';
+
 class Group {
   final String id;
   final String name;
@@ -31,12 +33,15 @@ class Group {
   }
 
   factory Group.fromMap(Map<String, dynamic> map) {
+    final memberIdsStr = map['member_ids'] as String? ?? '';
     return Group(
-      id: map['id'] as String,
-      name: map['name'] as String,
-      creatorId: map['creator_id'] as String,
-      memberIds: (map['member_ids'] as String).split(','),
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
+      id: map['id'] as String? ?? '',
+      name: map['name'] as String? ?? 'Unnamed Group',
+      creatorId: map['creator_id'] as String? ?? '',
+      memberIds: memberIdsStr.isNotEmpty ? memberIdsStr.split(',') : [],
+      createdAt: map['created_at'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int)
+          : DateTime.now(),
       avatarPath: map['avatar_path'] as String?,
     );
   }
@@ -71,7 +76,7 @@ class GroupMessage {
   final DateTime timestamp;
   final MessageType type;
   final String? imageUrl;
-  final Map<String, bool> deliveredTo; // peerId -> delivered
+  final Map<String, bool> deliveredTo; 
 
   GroupMessage({
     required this.id,
@@ -124,10 +129,4 @@ class GroupMessage {
       deliveredTo: deliveredTo,
     );
   }
-}
-
-enum MessageType {
-  text,
-  image,
-  system,
 }

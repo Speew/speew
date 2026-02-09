@@ -4,19 +4,17 @@ import 'dart:typed_data';
 import 'dart:convert';
 import '../core/utils.dart';
 
-/// Modo Stealth - Torna comunicação indetectável e indistinguível de tráfego normal
 class StealthMode {
   final Random _random = Random.secure();
   bool _enabled = false;
   Timer? _coverTrafficTimer;
-  
-  // Configurações de stealth
+
   static const int minPadding = 32;
   static const int maxPadding = 1024;
   static const int minDelay = 50;
   static const int maxDelay = 500;
-  static const int coverTrafficInterval = 7000; // 7 segundos
-  static const double coverTrafficProbability = 0.25; // 25%
+  static const int coverTrafficInterval = 7000; 
+  static const double coverTrafficProbability = 0.25; 
   
   final StreamController<StealthPacket> _coverTrafficController =
       StreamController<StealthPacket>.broadcast();
@@ -24,7 +22,6 @@ class StealthMode {
   Stream<StealthPacket> get coverTrafficStream => _coverTrafficController.stream;
   bool get isEnabled => _enabled;
 
-  /// Ativar modo stealth
   void enable() {
     if (_enabled) return;
     
@@ -34,7 +31,6 @@ class StealthMode {
     DebugUtils.log('⚠️ STEALTH MODE ACTIVATED', tag: 'STEALTH');
   }
 
-  /// Desativar modo stealth
   void disable() {
     if (!_enabled) return;
     
@@ -44,7 +40,6 @@ class StealthMode {
     DebugUtils.log('STEALTH MODE DEACTIVATED', tag: 'STEALTH');
   }
 
-  /// Processar dados de saída (adicionar ofuscação)
   Future<StealthPacket> obfuscate(Uint8List data, String peerId) async {
     if (!_enabled) {
       return StealthPacket(
@@ -54,61 +49,50 @@ class StealthMode {
       );
     }
 
-    // 1. Traffic Shaping - Adicionar padding para ofuscar tamanho
     final padded = _addTrafficShaping(data);
 
-    // 2. Timing Obfuscation - Adicionar delay aleatório
     await _addTimingJitter();
 
-    // 3. Protocol Mimicry - Fazer parecer HTTPS
     final mimicked = _addProtocolMimicry(padded);
 
-    // 4. Packet Fragmentation - Quebrar em fragmentos
     final fragments = _fragmentPacket(mimicked);
 
     DebugUtils.log('Packet obfuscated: ${data.length}B → ${mimicked.length}B', tag: 'STEALTH');
 
     return StealthPacket(
-      data: fragments[0], // Retornar primeiro fragmento
+      data: fragments[0], 
       peerId: peerId,
       isCoverTraffic: false,
       totalFragments: fragments.length,
     );
   }
 
-  /// Remover ofuscação de dados recebidos
   Future<Uint8List?> deobfuscate(StealthPacket packet) async {
     if (!_enabled) {
       return packet.data;
     }
 
-    // Verificar se é cover traffic
     if (packet.isCoverTraffic) {
       DebugUtils.log('Cover traffic received (discarded)', tag: 'STEALTH');
       return null;
     }
 
-    // 1. Remover protocol mimicry
     final unMimicked = _removeProtocolMimicry(packet.data);
 
-    // 2. Remover padding
     final unPadded = _removeTrafficShaping(unMimicked);
 
     return unPadded;
   }
 
-  /// Traffic Shaping - Adicionar padding aleatório
   Uint8List _addTrafficShaping(Uint8List data) {
-    // Calcular tamanho de padding aleatório
-    final paddingSize = minPadding + _random.nextInt(maxPadding - minPadding);
     
-    // Gerar bytes aleatórios de padding
+    final paddingSize = minPadding + _random.nextInt(maxPadding - minPadding);
+
     final padding = Uint8List(paddingSize);
     for (int i = 0; i < paddingSize; i++) {
       padding[i] = _random.nextInt(256);
     }
 
-    // Formato: [tamanho_original(4)][dados][padding]
     final result = Uint8List(4 + data.length + paddingSize);
     final view = ByteData.view(result.buffer);
     
@@ -119,7 +103,6 @@ class StealthMode {
     return result;
   }
 
-  /// Remover padding
   Uint8List _removeTrafficShaping(Uint8List padded) {
     if (padded.length < 4) return padded;
 
@@ -127,21 +110,19 @@ class StealthMode {
     final originalSize = view.getUint32(0);
 
     if (originalSize > padded.length - 4) {
-      return padded; // Dados corrompidos
+      return padded; 
     }
 
     return padded.sublist(4, 4 + originalSize);
   }
 
-  /// Timing Obfuscation - Delay aleatório
   Future<void> _addTimingJitter() async {
     final delay = minDelay + _random.nextInt(maxDelay - minDelay);
     await Future.delayed(Duration(milliseconds: delay));
   }
 
-  /// Protocol Mimicry - Fazer parecer HTTPS
   Uint8List _addProtocolMimicry(Uint8List data) {
-    // Simular TLS handshake ou HTTP request
+    
     final headers = [
       'GET /api/sync HTTP/1.1',
       'Host: cdn.cloudflare.com',
@@ -157,7 +138,6 @@ class StealthMode {
     final headerStr = headers.join('\r\n');
     final headerBytes = utf8.encode(headerStr);
 
-    // Combinar: [headers HTTP][dados]
     final result = Uint8List(headerBytes.length + data.length);
     result.setRange(0, headerBytes.length, headerBytes);
     result.setRange(headerBytes.length, result.length, data);
@@ -165,9 +145,8 @@ class StealthMode {
     return result;
   }
 
-  /// Remover protocol mimicry
   Uint8List _removeProtocolMimicry(Uint8List data) {
-    // Procurar fim dos headers HTTP (\r\n\r\n)
+    
     for (int i = 0; i < data.length - 3; i++) {
       if (data[i] == 13 && data[i + 1] == 10 &&
           data[i + 2] == 13 && data[i + 3] == 10) {
@@ -175,10 +154,9 @@ class StealthMode {
       }
     }
 
-    return data; // Sem headers encontrados
+    return data; 
   }
 
-  /// Fragmentar pacote em chunks menores
   List<Uint8List> _fragmentPacket(Uint8List data) {
     const fragmentSize = 512;
     
@@ -199,7 +177,6 @@ class StealthMode {
     return fragments;
   }
 
-  /// Iniciar geração de cover traffic (tráfego falso)
   void _startCoverTraffic() {
     _coverTrafficTimer?.cancel();
     
@@ -209,27 +186,23 @@ class StealthMode {
     );
   }
 
-  /// Parar cover traffic
   void _stopCoverTraffic() {
     _coverTrafficTimer?.cancel();
     _coverTrafficTimer = null;
   }
 
-  /// Gerar tráfego de cobertura (dummy packets)
   void _generateCoverTraffic() {
-    // Gerar apenas com certa probabilidade
+    
     if (_random.nextDouble() > coverTrafficProbability) {
       return;
     }
 
-    // Gerar dados aleatórios
     final size = 128 + _random.nextInt(512);
     final dummyData = Uint8List(size);
     for (int i = 0; i < size; i++) {
       dummyData[i] = _random.nextInt(256);
     }
 
-    // Adicionar padding e mimicry
     final padded = _addTrafficShaping(dummyData);
     final mimicked = _addProtocolMimicry(padded);
 
@@ -242,7 +215,6 @@ class StealthMode {
     DebugUtils.log('Cover traffic generated', tag: 'STEALTH');
   }
 
-  /// Análise de tráfego (para debugging)
   Map<String, dynamic> getTrafficAnalysis() {
     return {
       'enabled': _enabled,
@@ -278,7 +250,6 @@ class StealthPacket {
   bool get isFragmented => (totalFragments ?? 1) > 1;
 }
 
-/// Análise de padrões de tráfego (para detecção)
 class TrafficAnalyzer {
   final List<DateTime> _packetTimes = [];
   final List<int> _packetSizes = [];
@@ -294,7 +265,6 @@ class TrafficAnalyzer {
     }
   }
 
-  /// Calcular entropia do tamanho dos pacotes
   double calculateSizeEntropy() {
     if (_packetSizes.isEmpty) return 0.0;
 
@@ -314,7 +284,6 @@ class TrafficAnalyzer {
     return entropy;
   }
 
-  /// Calcular variância dos intervalos entre pacotes
   double calculateTimingVariance() {
     if (_packetTimes.length < 2) return 0.0;
 

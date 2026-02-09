@@ -2,7 +2,7 @@ class Peer {
   final String id;
   final String name;
   final DateTime lastSeen;
-  final bool isConnected;
+  bool isConnected;
 
   Peer({
     required this.id,
@@ -22,9 +22,11 @@ class Peer {
 
   factory Peer.fromMap(Map<String, dynamic> map) {
     return Peer(
-      id: map['id'] as String,
-      name: map['name'] as String,
-      lastSeen: DateTime.fromMillisecondsSinceEpoch(map['last_seen'] as int),
+      id: map['id'] as String? ?? '',
+      name: map['name'] as String? ?? 'Unknown',
+      lastSeen: map['last_seen'] != null 
+          ? DateTime.fromMillisecondsSinceEpoch(map['last_seen'] as int)
+          : DateTime.now(),
       isConnected: (map['is_connected'] as int?) == 1,
     );
   }

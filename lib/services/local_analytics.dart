@@ -4,21 +4,12 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path_provider/path_provider.dart';
 import '../core/utils.dart';
 
-/// Local Analytics - Privacy-First
-/// Features:
-/// - Zero data enviado para servidores
-/// - Estatísticas locais apenas
-/// - Insights sobre uso do app
-/// - Performance monitoring
-/// - Network statistics
-/// - Battery usage tracking
 class LocalAnalytics {
   Database? _db;
   
   final Map<String, EventAggregator> _aggregators = {};
   Timer? _flushTimer;
 
-  /// Inicializar analytics
   Future<void> initialize() async {
     final dir = await getApplicationDocumentsDirectory();
     final dbPath = '${dir.path}/local_analytics.db';
@@ -27,7 +18,7 @@ class LocalAnalytics {
       dbPath,
       version: 1,
       onCreate: (db, version) async {
-        // Tabela de eventos
+        
         await db.execute('''
           CREATE TABLE events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,7 +31,6 @@ class LocalAnalytics {
           )
         ''');
 
-        // Tabela de métricas
         await db.execute('''
           CREATE TABLE metrics (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,7 +41,6 @@ class LocalAnalytics {
           )
         ''');
 
-        // Tabela de sessões
         await db.execute('''
           CREATE TABLE sessions (
             id TEXT PRIMARY KEY,
@@ -62,20 +51,17 @@ class LocalAnalytics {
           )
         ''');
 
-        // Índices
         await db.execute('CREATE INDEX idx_events_category ON events(category)');
         await db.execute('CREATE INDEX idx_events_timestamp ON events(timestamp)');
         await db.execute('CREATE INDEX idx_metrics_name ON metrics(name)');
       },
     );
 
-    // Iniciar flush periódico
     _startPeriodicFlush();
 
     DebugUtils.log('Local Analytics initialized', tag: 'ANALYTICS');
   }
 
-  /// Rastrear evento
   Future<void> trackEvent({
     required String category,
     required String action,
@@ -91,16 +77,13 @@ class LocalAnalytics {
       sessionId: _getCurrentSessionId(),
     );
 
-    // Agregar em memória
     final key = '${category}_$action';
     _aggregators[key] ??= EventAggregator();
     _aggregators[key]!.add(event);
 
-    // Salvar no banco (batch)
     await _saveEvent(event);
   }
 
-  /// Rastrear métrica
   Future<void> trackMetric({
     required String name,
     required double value,
@@ -114,7 +97,6 @@ class LocalAnalytics {
     });
   }
 
-  /// Rastrear tempo de tela
   Future<void> trackScreenTime(String screenName, Duration duration) async {
     await trackEvent(
       category: 'screen',
@@ -124,7 +106,6 @@ class LocalAnalytics {
     );
   }
 
-  /// Rastrear performance
   Future<void> trackPerformance({
     required String operation,
     required Duration duration,
@@ -144,7 +125,6 @@ class LocalAnalytics {
     );
   }
 
-  /// Rastrear uso de rede
   Future<void> trackNetworkUsage({
     required int bytesReceived,
     required int bytesSent,
@@ -162,7 +142,6 @@ class LocalAnalytics {
     );
   }
 
-  /// Rastrear uso de bateria
   Future<void> trackBatteryUsage(double percentage) async {
     await trackMetric(
       name: 'battery_level',
@@ -171,7 +150,6 @@ class LocalAnalytics {
     );
   }
 
-  /// Obter estatísticas de eventos
   Future<EventStatistics> getEventStatistics({
     required String category,
     DateTime? startDate,
@@ -215,7 +193,6 @@ class LocalAnalytics {
     );
   }
 
-  /// Obter métricas agregadas
   Future<Map<String, MetricSummary>> getMetricsSummary({
     DateTime? startDate,
     DateTime? endDate,
@@ -231,7 +208,6 @@ class LocalAnalytics {
 
     final summary = <String, MetricSummary>{};
 
-    // Agrupar por nome
     final grouped = <String, List<double>>{};
     for (final metric in metrics) {
       final name = metric['name'] as String;
@@ -241,7 +217,6 @@ class LocalAnalytics {
       grouped[name]!.add(value);
     }
 
-    // Calcular estatísticas
     for (final entry in grouped.entries) {
       final values = entry.value;
       values.sort();
@@ -259,20 +234,17 @@ class LocalAnalytics {
     return summary;
   }
 
-  /// Obter insights de uso
   Future<UsageInsights> getUsageInsights() async {
     final now = DateTime.now();
     final last7Days = now.subtract(const Duration(days: 7));
     final last30Days = now.subtract(const Duration(days: 30));
 
-    // Sessões nos últimos 7 dias
     final sessions7d = await _db!.query(
       'sessions',
       where: 'started_at >= ?',
       whereArgs: [last7Days.millisecondsSinceEpoch],
     );
 
-    // Tempo médio de sessão
     final sessionDurations = sessions7d
         .where((s) => s['duration'] != null)
         .map((s) => s['duration'] as int)
@@ -282,13 +254,10 @@ class LocalAnalytics {
         ? sessionDurations.reduce((a, b) => a + b) / sessionDurations.length
         : 0.0;
 
-    // Eventos mais comuns
     final topEvents = await _getTopEvents(7);
 
-    // Métricas de performance
     final perfMetrics = await getMetricsSummary(startDate: last7Days);
 
-    // Uso de rede
     final networkSent = perfMetrics['network_sent'];
     final networkReceived = perfMetrics['network_received'];
 
@@ -304,7 +273,6 @@ class LocalAnalytics {
     );
   }
 
-  /// Obter relatório diário
   Future<DailyReport> getDailyReport(DateTime date) async {
     final startOfDay = DateTime(date.year, date.month, date.day);
     final endOfDay = startOfDay.add(const Duration(days: 1));
@@ -345,7 +313,6 @@ class LocalAnalytics {
     );
   }
 
-  /// Exportar dados (para backup)
   Future<String> exportData({
     DateTime? startDate,
     DateTime? endDate,
@@ -384,7 +351,6 @@ class LocalAnalytics {
     return jsonEncode(export);
   }
 
-  /// Limpar dados antigos
   Future<void> cleanOldData({int daysToKeep = 90}) async {
     final cutoffDate = DateTime.now().subtract(Duration(days: daysToKeep));
 
@@ -452,19 +418,16 @@ class LocalAnalytics {
   }
 
   double _calculatePerformanceScore(Map<String, MetricSummary> metrics) {
-    // Score baseado em métricas de performance
-    // 100 = excelente, 0 = ruim
-    
+
     double score = 100.0;
 
-    // Penalizar por alta latência
     final avgLatency = metrics.values
         .where((m) => m.name.contains('perf_'))
         .map((m) => m.average)
         .fold(0.0, (a, b) => a + b);
 
-    if (avgLatency > 1000) score -= 20; // > 1s
-    else if (avgLatency > 500) score -= 10; // > 500ms
+    if (avgLatency > 1000) score -= 20; 
+    else if (avgLatency > 500) score -= 10; 
 
     return score.clamp(0, 100);
   }
@@ -476,12 +439,12 @@ class LocalAnalytics {
   }
 
   void _flushAggregators() {
-    // Flush aggregators to database
+    
     _aggregators.clear();
   }
 
   String _getCurrentSessionId() {
-    // Implementar tracking de sessão
+    
     return 'session_${DateTime.now().millisecondsSinceEpoch}';
   }
 

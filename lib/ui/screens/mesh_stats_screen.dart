@@ -66,7 +66,7 @@ class MeshStatisticsScreen extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(AppTheme.paddingMedium),
       children: [
-        // Node Info
+        
         _buildInfoCard(
           'Informações do Nó',
           [
@@ -79,12 +79,10 @@ class MeshStatisticsScreen extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        // Routing Table
         _buildRoutingTable(routes),
 
         const SizedBox(height: 16),
 
-        // Legend
         _buildLegend(),
       ],
     );

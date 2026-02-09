@@ -3,8 +3,6 @@ import 'package:flutter/services.dart';
 import '../models/peer.dart';
 import '../core/utils.dart';
 
-/// Serviço iOS usando Multipeer Connectivity
-/// Equivalente ao Nearby Connections do Android
 class MultipeerService {
   static const MethodChannel _channel = MethodChannel('speew/multipeer');
   static const EventChannel _discoveryChannel = EventChannel('speew/multipeer/discovery');
@@ -20,12 +18,10 @@ class MultipeerService {
   bool _initialized = false;
   String? _displayName;
 
-  // Getters
   Stream<Peer> get discoveredPeersStream => _discoveredPeersController.stream;
   Stream<Map<String, dynamic>> get messagesStream => _messagesController.stream;
   Stream<String> get connectionStatusStream => _connectionStatusController.stream;
 
-  /// Inicializar serviço Multipeer
   Future<void> initialize(String displayName) async {
     if (_initialized) return;
 
@@ -34,7 +30,7 @@ class MultipeerService {
       
       await _channel.invokeMethod('initialize', {
         'displayName': displayName,
-        'serviceType': 'speew-p2p', // Máx 15 caracteres
+        'serviceType': 'speew-p2p', 
       });
 
       _setupEventChannels();
@@ -47,9 +43,8 @@ class MultipeerService {
     }
   }
 
-  /// Configurar event channels
   void _setupEventChannels() {
-    // Discovery events
+    
     _discoveryChannel.receiveBroadcastStream().listen(
       (event) {
         final data = event as Map<dynamic, dynamic>;
@@ -60,7 +55,6 @@ class MultipeerService {
       },
     );
 
-    // Message events
     _messagesChannel.receiveBroadcastStream().listen(
       (event) {
         final data = event as Map<dynamic, dynamic>;
@@ -72,7 +66,6 @@ class MultipeerService {
     );
   }
 
-  /// Iniciar advertising (servidor)
   Future<bool> startAdvertising() async {
     try {
       final result = await _channel.invokeMethod('startAdvertising');
@@ -84,7 +77,6 @@ class MultipeerService {
     }
   }
 
-  /// Parar advertising
   Future<void> stopAdvertising() async {
     try {
       await _channel.invokeMethod('stopAdvertising');
@@ -94,7 +86,6 @@ class MultipeerService {
     }
   }
 
-  /// Iniciar browsing (cliente)
   Future<bool> startBrowsing() async {
     try {
       final result = await _channel.invokeMethod('startBrowsing');
@@ -106,7 +97,6 @@ class MultipeerService {
     }
   }
 
-  /// Parar browsing
   Future<void> stopBrowsing() async {
     try {
       await _channel.invokeMethod('stopBrowsing');
@@ -116,7 +106,6 @@ class MultipeerService {
     }
   }
 
-  /// Convidar peer para conectar
   Future<void> invitePeer(String peerId) async {
     try {
       await _channel.invokeMethod('invitePeer', {
@@ -128,7 +117,6 @@ class MultipeerService {
     }
   }
 
-  /// Enviar dados para peer
   Future<bool> sendData(String peerId, List<int> data) async {
     try {
       final result = await _channel.invokeMethod('sendData', {
@@ -142,7 +130,6 @@ class MultipeerService {
     }
   }
 
-  /// Desconectar de peer
   Future<void> disconnectPeer(String peerId) async {
     try {
       await _channel.invokeMethod('disconnectPeer', {
@@ -154,7 +141,6 @@ class MultipeerService {
     }
   }
 
-  /// Processar evento de discovery
   void _handleDiscoveryEvent(Map<dynamic, dynamic> data) {
     final eventType = data['type'] as String;
     
@@ -191,7 +177,6 @@ class MultipeerService {
     }
   }
 
-  /// Processar evento de mensagem
   void _handleMessageEvent(Map<dynamic, dynamic> data) {
     final peerId = data['peerId'] as String;
     final messageData = data['data'] as List<int>;
@@ -211,44 +196,3 @@ class MultipeerService {
     _connectionStatusController.close();
   }
 }
-
-/// Código Swift nativo (ios/Runner/MultipeerHandler.swift)
-/// 
-/// Este arquivo deve ser criado em ios/Runner/:
-/// 
-/// ```swift
-/// import Flutter
-/// import MultipeerConnectivity
-/// 
-/// class MultipeerHandler: NSObject, MCSessionDelegate, MCNearbyServiceAdvertiserDelegate, MCNearbyServiceBrowserDelegate {
-///     var session: MCSession!
-///     var advertiser: MCNearbyServiceAdvertiser!
-///     var browser: MCNearbyServiceBrowser!
-///     var peerID: MCPeerID!
-///     var serviceType: String = "speew-p2p"
-///     
-///     var discoveryEventSink: FlutterEventSink?
-///     var messagesEventSink: FlutterEventSink?
-///     
-///     func initialize(displayName: String, serviceType: String) {
-///         self.serviceType = serviceType
-///         self.peerID = MCPeerID(displayName: displayName)
-///         self.session = MCSession(peer: peerID, securityIdentity: nil, encryptionPreference: .required)
-///         self.session.delegate = self
-///     }
-///     
-///     func startAdvertising() {
-///         advertiser = MCNearbyServiceAdvertiser(peer: peerID, discoveryInfo: nil, serviceType: serviceType)
-///         advertiser.delegate = self
-///         advertiser.startAdvertisingPeer()
-///     }
-///     
-///     func startBrowsing() {
-///         browser = MCNearbyServiceBrowser(peer: peerID, serviceType: serviceType)
-///         browser.delegate = self
-///         browser.startBrowsingForPeers()
-///     }
-///     
-///     // ... delegates e métodos adicionais
-/// }
-/// ```

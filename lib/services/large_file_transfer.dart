@@ -6,10 +6,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import '../core/utils.dart';
+import '../core/error/error_handler.dart';
 
 class LargeFileTransfer {
-  static const int chunkSize = 64 * 1024; // 64KB chunks
-  static const int maxFileSize = 1024 * 1024 * 1024; // 1GB max
+  static const int chunkSize = 64 * 1024; 
+  static const int maxFileSize = 1024 * 1024 * 1024; 
   
   final Map<String, FileTransferSession> _activeSessions = {};
   
@@ -18,19 +19,17 @@ class LargeFileTransfer {
   
   Stream<FileTransferProgress> get progressStream => _progressController.stream;
 
-  /// Preparar arquivo para envio
   Future<FileMetadata> prepareFile(File file) async {
     final stat = await file.stat();
     
     if (stat.size > maxFileSize) {
-      throw Exception('File too large. Max ${maxFileSize ~/ (1024 * 1024)}MB');
+      throw ValidationException('File too large. Max ${maxFileSize ~/ (1024 * 1024)}MB');
     }
 
     final transferId = _generateTransferId();
     final fileName = path.basename(file.path);
     final totalChunks = (stat.size / chunkSize).ceil();
-    
-    // Calcular hash do arquivo
+
     final fileHash = await _calculateFileHash(file);
 
     final metadata = FileMetadata(
@@ -56,10 +55,9 @@ class LargeFileTransfer {
     return metadata;
   }
 
-  /// Obter chunk específico
   Future<FileChunk> getChunk(String transferId, int chunkIndex) async {
     final session = _activeSessions[transferId];
-    if (session == null) throw Exception('Session not found');
+    if (session == null) throw ValidationException('Session not found');
 
     final file = File(session.filePath);
     final offset = chunkIndex * chunkSize;
@@ -72,7 +70,6 @@ class LargeFileTransfer {
       final length = remaining < chunkSize ? remaining : chunkSize;
       final data = await randomAccess.read(length);
 
-      // Calcular hash do chunk
       final chunkHash = sha256.convert(data).toString();
 
       return FileChunk(
@@ -87,7 +84,6 @@ class LargeFileTransfer {
     }
   }
 
-  /// Iniciar recepção de arquivo
   Future<String> startReceiving(FileMetadata metadata) async {
     final dir = await getApplicationDocumentsDirectory();
     final downloadsDir = Directory('${dir.path}/downloads');
@@ -111,12 +107,10 @@ class LargeFileTransfer {
     return filePath;
   }
 
-  /// Processar chunk recebido
   Future<bool> receiveChunk(FileChunk chunk) async {
     final session = _activeSessions[chunk.transferId];
-    if (session == null) throw Exception('Session not found');
+    if (session == null) throw ValidationException('Session not found');
 
-    // Verificar hash do chunk
     final calculatedHash = sha256.convert(chunk.data).toString();
     if (calculatedHash != chunk.chunkHash) {
       DebugUtils.logError('Chunk hash mismatch!');
@@ -132,8 +126,7 @@ class LargeFileTransfer {
       await randomAccess.writeFrom(chunk.data);
       
       session.receivedChunks!.add(chunk.chunkIndex);
-      
-      // Emitir progresso
+
       final progress = session.receivedChunks!.length / session.metadata.totalChunks;
       
       _progressController.add(FileTransferProgress(
@@ -146,7 +139,6 @@ class LargeFileTransfer {
         isComplete: chunk.isLast,
       ));
 
-      // Se é último chunk, verificar hash do arquivo completo
       if (chunk.isLast) {
         await randomAccess.close();
         final fileHash = await _calculateFileHash(file);
@@ -166,7 +158,6 @@ class LargeFileTransfer {
     }
   }
 
-  /// Obter chunks faltantes (para resumir transferência)
   List<int> getMissingChunks(String transferId) {
     final session = _activeSessions[transferId];
     if (session == null) return [];
@@ -181,7 +172,6 @@ class LargeFileTransfer {
     return missing;
   }
 
-  /// Cancelar transferência
   Future<void> cancelTransfer(String transferId) async {
     final session = _activeSessions.remove(transferId);
     
@@ -195,7 +185,6 @@ class LargeFileTransfer {
     DebugUtils.log('Transfer cancelled: $transferId', tag: 'FILE');
   }
 
-  /// Pausar transferência
   void pauseTransfer(String transferId) {
     final session = _activeSessions[transferId];
     if (session != null) {
@@ -204,7 +193,6 @@ class LargeFileTransfer {
     }
   }
 
-  /// Resumir transferência
   void resumeTransfer(String transferId) {
     final session = _activeSessions[transferId];
     if (session != null) {
@@ -261,7 +249,7 @@ class LargeFileTransfer {
     if (elapsed.inSeconds == 0) return 0.0;
     
     final bytesTransferred = session.receivedChunks!.length * chunkSize;
-    return bytesTransferred / elapsed.inSeconds; // bytes/sec
+    return bytesTransferred / elapsed.inSeconds; 
   }
 
   void dispose() {
@@ -328,7 +316,7 @@ class FileTransferProgress {
   final double progress;
   final int bytesTransferred;
   final int totalBytes;
-  final double speed; // bytes/sec
+  final double speed; 
   final bool isComplete;
 
   FileTransferProgress({

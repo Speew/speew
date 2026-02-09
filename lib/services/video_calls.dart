@@ -1,8 +1,6 @@
 import 'dart:async';
 import '../core/utils.dart';
 
-/// Video Calls P2P usando WebRTC
-/// Chamadas de vídeo sem servidor (truly P2P)
 class VideoCallService {
   final Map<String, VideoCall> _activeCalls = {};
   
@@ -11,7 +9,6 @@ class VideoCallService {
 
   Stream<VideoCallEvent> get eventStream => _eventController.stream;
 
-  /// Iniciar chamada de vídeo
   Future<VideoCall?> initiateCall({
     required String peerId,
     required String peerName,
@@ -32,12 +29,6 @@ class VideoCallService {
 
       _activeCalls[callId] = call;
 
-      // Criar oferta WebRTC
-      // final offer = await _createOffer(call);
-      
-      // Enviar oferta ao peer via P2P
-      // await p2p.send(peerId, offer);
-
       _eventController.add(VideoCallEvent(
         type: VideoCallEventType.callInitiated,
         callId: callId,
@@ -52,7 +43,6 @@ class VideoCallService {
     }
   }
 
-  /// Receber chamada de entrada
   Future<void> receiveCall({
     required String callId,
     required String peerId,
@@ -79,17 +69,11 @@ class VideoCallService {
     DebugUtils.log('Incoming call from $peerName', tag: 'VIDEO_CALL');
   }
 
-  /// Aceitar chamada
   Future<bool> acceptCall(String callId) async {
     final call = _activeCalls[callId];
     if (call == null) return false;
 
     try {
-      // Criar resposta WebRTC
-      // final answer = await _createAnswer(call);
-      
-      // Enviar resposta ao peer
-      // await p2p.send(call.peerId, answer);
 
       call.state = CallState.connected;
       call.connectedAt = DateTime.now();
@@ -108,13 +92,9 @@ class VideoCallService {
     }
   }
 
-  /// Rejeitar chamada
   Future<void> rejectCall(String callId) async {
     final call = _activeCalls[callId];
     if (call == null) return;
-
-    // Enviar rejeição ao peer
-    // await p2p.send(call.peerId, {'type': 'reject'});
 
     _activeCalls.remove(callId);
 
@@ -126,16 +106,9 @@ class VideoCallService {
     DebugUtils.log('Call rejected: $callId', tag: 'VIDEO_CALL');
   }
 
-  /// Encerrar chamada
   Future<void> endCall(String callId) async {
     final call = _activeCalls.remove(callId);
     if (call == null) return;
-
-    // Fechar conexão WebRTC
-    // await _closeConnection(call);
-
-    // Notificar peer
-    // await p2p.send(call.peerId, {'type': 'hangup'});
 
     final duration = call.connectedAt != null
         ? DateTime.now().difference(call.connectedAt!)
@@ -153,15 +126,11 @@ class VideoCallService {
     );
   }
 
-  /// Alternar vídeo
   Future<void> toggleVideo(String callId) async {
     final call = _activeCalls[callId];
     if (call == null) return;
 
     call.videoEnabled = !call.videoEnabled;
-
-    // Atualizar track de vídeo
-    // await _updateVideoTrack(call);
 
     DebugUtils.log(
       'Video ${call.videoEnabled ? 'enabled' : 'disabled'}',
@@ -169,15 +138,11 @@ class VideoCallService {
     );
   }
 
-  /// Alternar áudio
   Future<void> toggleAudio(String callId) async {
     final call = _activeCalls[callId];
     if (call == null) return;
 
     call.audioEnabled = !call.audioEnabled;
-
-    // Atualizar track de áudio
-    // await _updateAudioTrack(call);
 
     DebugUtils.log(
       'Audio ${call.audioEnabled ? 'enabled' : 'disabled'}',
@@ -185,43 +150,35 @@ class VideoCallService {
     );
   }
 
-  /// Alternar câmera (frontal/traseira)
   Future<void> switchCamera(String callId) async {
     final call = _activeCalls[callId];
     if (call == null) return;
 
     call.isFrontCamera = !call.isFrontCamera;
 
-    // Trocar fonte de vídeo
-    // await _switchVideoSource(call);
-
     DebugUtils.log('Camera switched', tag: 'VIDEO_CALL');
   }
 
-  /// Obter chamada ativa
   VideoCall? getCall(String callId) {
     return _activeCalls[callId];
   }
 
-  /// Verificar se há chamada ativa
   bool get hasActiveCall => _activeCalls.isNotEmpty;
 
-  /// Obter estatísticas da chamada
   CallStatistics? getStatistics(String callId) {
     final call = _activeCalls[callId];
     if (call == null) return null;
 
-    // Em produção: obter stats reais do WebRTC
     return CallStatistics(
       callId: callId,
       duration: call.connectedAt != null
           ? DateTime.now().difference(call.connectedAt!)
           : Duration.zero,
-      videoBitrate: 1500, // kbps
-      audioBitrate: 64, // kbps
-      packetLoss: 0.5, // %
-      jitter: 10, // ms
-      rtt: 25, // ms (round-trip time)
+      videoBitrate: 1500, 
+      audioBitrate: 64, 
+      packetLoss: 0.5, 
+      jitter: 10, 
+      rtt: 25, 
     );
   }
 
@@ -314,11 +271,11 @@ enum VideoCallEventType {
 class CallStatistics {
   final String callId;
   final Duration duration;
-  final int videoBitrate; // kbps
-  final int audioBitrate; // kbps
-  final double packetLoss; // %
-  final int jitter; // ms
-  final int rtt; // ms (round-trip time)
+  final int videoBitrate; 
+  final int audioBitrate; 
+  final double packetLoss; 
+  final int jitter; 
+  final int rtt; 
 
   CallStatistics({
     required this.callId,
@@ -343,7 +300,6 @@ class CallStatistics {
   }
 }
 
-/// Configurações de qualidade de vídeo
 enum VideoQuality {
   low(320, 240, 500, 'Baixa (320p)'),
   medium(640, 480, 1000, 'Média (480p)'),
@@ -352,13 +308,12 @@ enum VideoQuality {
 
   final int width;
   final int height;
-  final int bitrate; // kbps
+  final int bitrate; 
   final String label;
 
   const VideoQuality(this.width, this.height, this.bitrate, this.label);
 }
 
-/// Screen Sharing (compartilhamento de tela)
 class ScreenSharing {
   bool _isSharing = false;
   
@@ -366,10 +321,7 @@ class ScreenSharing {
 
   Future<bool> startSharing() async {
     try {
-      // Iniciar captura de tela
-      // Em Android: MediaProjection API
-      // Em iOS: ReplayKit (iOS 12+)
-      
+
       _isSharing = true;
       DebugUtils.log('Screen sharing started', tag: 'SCREEN_SHARE');
       

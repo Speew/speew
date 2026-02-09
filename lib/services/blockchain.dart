@@ -3,16 +3,13 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import '../core/utils.dart';
 
-/// Blockchain para verificação de integridade de mensagens
-/// Garante que histórico de chat não pode ser alterado retroativamente
 class MessageBlockchain {
   final List<Block> _chain = [];
-  final int _difficulty = 2; // Proof of work difficulty
+  final int _difficulty = 2; 
 
   List<Block> get chain => List.unmodifiable(_chain);
   int get length => _chain.length;
 
-  /// Inicializar blockchain com genesis block
   void initialize() {
     if (_chain.isEmpty) {
       final genesis = Block(
@@ -28,7 +25,6 @@ class MessageBlockchain {
     }
   }
 
-  /// Adicionar mensagem ao blockchain
   Future<Block> addMessage({
     required String messageId,
     required String senderId,
@@ -50,7 +46,6 @@ class MessageBlockchain {
       previousHash: lastBlock.hash,
     );
 
-    // Minerar bloco (Proof of Work)
     await _mineBlock(newBlock);
 
     _chain.add(newBlock);
@@ -63,15 +58,13 @@ class MessageBlockchain {
     return newBlock;
   }
 
-  /// Minerar bloco (Proof of Work)
   Future<void> _mineBlock(Block block) async {
     final target = '0' * _difficulty;
     
     while (!block.hash.startsWith(target)) {
       block.nonce++;
       block.calculateHash();
-      
-      // Yield para não bloquear UI
+
       if (block.nonce % 1000 == 0) {
         await Future.delayed(Duration.zero);
       }
@@ -83,26 +76,22 @@ class MessageBlockchain {
     );
   }
 
-  /// Verificar integridade da blockchain
   bool verifyChain() {
     for (int i = 1; i < _chain.length; i++) {
       final currentBlock = _chain[i];
       final previousBlock = _chain[i - 1];
 
-      // Verificar hash do bloco
       final calculatedHash = _calculateBlockHash(currentBlock);
       if (currentBlock.hash != calculatedHash) {
         DebugUtils.logError('Block #$i hash is invalid!');
         return false;
       }
 
-      // Verificar link com bloco anterior
       if (currentBlock.previousHash != previousBlock.hash) {
         DebugUtils.logError('Block #$i previous hash mismatch!');
         return false;
       }
 
-      // Verificar proof of work
       final target = '0' * _difficulty;
       if (!currentBlock.hash.startsWith(target)) {
         DebugUtils.logError('Block #$i proof of work invalid!');
@@ -114,11 +103,10 @@ class MessageBlockchain {
     return true;
   }
 
-  /// Verificar se mensagem específica está na chain
   bool verifyMessage(String messageId) {
     for (final block in _chain) {
       if (block.data['message_id'] == messageId) {
-        // Verificar integridade do bloco
+        
         final calculatedHash = _calculateBlockHash(block);
         return block.hash == calculatedHash;
       }
@@ -126,13 +114,11 @@ class MessageBlockchain {
     return false;
   }
 
-  /// Obter bloco por índice
   Block? getBlock(int index) {
     if (index < 0 || index >= _chain.length) return null;
     return _chain[index];
   }
 
-  /// Obter todos os blocos de uma conversa
   List<Block> getConversationBlocks(String peerId) {
     return _chain.where((block) {
       final senderId = block.data['sender_id'];
@@ -141,7 +127,6 @@ class MessageBlockchain {
     }).toList();
   }
 
-  /// Calcular hash de um bloco
   String _calculateBlockHash(Block block) {
     final data = {
       'index': block.index,
@@ -158,7 +143,6 @@ class MessageBlockchain {
     return hash.toString();
   }
 
-  /// Exportar blockchain
   Map<String, dynamic> exportChain() {
     return {
       'length': _chain.length,
@@ -167,7 +151,6 @@ class MessageBlockchain {
     };
   }
 
-  /// Importar blockchain
   void importChain(Map<String, dynamic> data) {
     _chain.clear();
 
@@ -179,7 +162,6 @@ class MessageBlockchain {
     DebugUtils.log('Blockchain imported (${_chain.length} blocks)', tag: 'BLOCKCHAIN');
   }
 
-  /// Obter estatísticas
   Map<String, dynamic> getStatistics() {
     return {
       'total_blocks': _chain.length,
@@ -213,7 +195,6 @@ class Block {
     calculateHash();
   }
 
-  /// Calcular hash do bloco
   void calculateHash() {
     final blockData = {
       'index': index,
@@ -250,7 +231,6 @@ class Block {
   }
 }
 
-/// Merkle Tree para verificação eficiente de múltiplas mensagens
 class MerkleTree {
   final List<String> _leaves;
   List<String> _tree = [];
@@ -261,7 +241,6 @@ class MerkleTree {
 
   String get root => _tree.isNotEmpty ? _tree.last : '';
 
-  /// Construir árvore Merkle
   void _buildTree() {
     if (_leaves.isEmpty) return;
 
@@ -272,12 +251,12 @@ class MerkleTree {
 
       for (int i = 0; i < _tree.length; i += 2) {
         if (i + 1 < _tree.length) {
-          // Par de nós
+          
           final combined = _tree[i] + _tree[i + 1];
           final hash = sha256.convert(utf8.encode(combined)).toString();
           nextLevel.add(hash);
         } else {
-          // Nó ímpar (duplicar)
+          
           nextLevel.add(_tree[i]);
         }
       }
@@ -286,7 +265,6 @@ class MerkleTree {
     }
   }
 
-  /// Gerar prova de inclusão (Merkle proof)
   List<String> generateProof(int index) {
     final proof = <String>[];
     int currentIndex = index;
@@ -309,7 +287,6 @@ class MerkleTree {
     return proof;
   }
 
-  /// Verificar prova de inclusão
   static bool verifyProof(String leaf, List<String> proof, String root) {
     String current = leaf;
 

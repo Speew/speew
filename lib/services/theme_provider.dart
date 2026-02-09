@@ -11,7 +11,6 @@ class ThemeProvider extends ChangeNotifier {
   bool get isLightMode => _themeMode == ThemeMode.light;
   bool get isSystemMode => _themeMode == ThemeMode.system;
 
-  // Carregar preferência salva
   Future<void> loadThemePreference() async {
     final prefs = await SharedPreferences.getInstance();
     final themeName = prefs.getString(_themeKey) ?? 'system';
@@ -20,7 +19,6 @@ class ThemeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Alternar tema
   Future<void> toggleTheme() async {
     if (_themeMode == ThemeMode.light) {
       _themeMode = ThemeMode.dark;
@@ -34,14 +32,12 @@ class ThemeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Definir tema específico
   Future<void> setThemeMode(ThemeMode mode) async {
     _themeMode = mode;
     await _saveThemePreference();
     notifyListeners();
   }
 
-  // Salvar preferência
   Future<void> _saveThemePreference() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_themeKey, _themeMode.name);
@@ -60,7 +56,7 @@ class ThemeProvider extends ChangeNotifier {
 }
 
 class AppThemes {
-  // Tema Light
+  
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
@@ -123,7 +119,6 @@ class AppThemes {
     ),
   );
 
-  // Tema Dark
   static ThemeData darkTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
@@ -186,7 +181,6 @@ class AppThemes {
     ),
   );
 
-  // Cores de mensagens (ajustadas para cada tema)
   static Color getMyMessageColor(bool isDark) {
     return isDark ? const Color(0xFF1976D2) : const Color(0xFF2196F3);
   }

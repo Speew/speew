@@ -4,32 +4,22 @@ import 'package:cryptography/cryptography.dart';
 import 'package:hive/hive.dart';
 import '../core/utils.dart';
 
-/// E2E Encryption Service - OTIMIZADO
-/// Features:
-/// - Persistent key storage (Hive)
-/// - Key rotation automática
-/// - Session resumption
-/// - Multiple sessions per peer
 class E2EEncryption {
-  // Algoritmos
+  
   static final _x25519 = X25519();
   static final _chacha20 = Chacha20.poly1305Aead();
   static final _sha256 = Sha256();
-  
-  // Storage
+
   Box? _keyStore;
-  
-  // Chaves locais
+
   SimpleKeyPair? _localKeyPair;
   SimplePublicKey? _remotePublicKey;
   SecretKey? _sharedSecret;
-  
-  // Session management
+
   String? _sessionId;
   DateTime? _sessionCreated;
   int _messagesEncrypted = 0;
-  
-  // Key rotation config
+
   static const int maxMessagesBeforeRotation = 1000;
   static const Duration maxSessionDuration = Duration(days: 7);
   
@@ -42,24 +32,21 @@ class E2EEncryption {
       (_sessionCreated != null && 
        DateTime.now().difference(_sessionCreated!) > maxSessionDuration);
 
-  /// Inicializar com storage persistente
   Future<void> initialize() async {
     try {
-      // Abrir Hive box para chaves
-      _keyStore = await Hive.openBox('e2e_keys');
       
-      // Tentar carregar chave existente
+      _keyStore = await Hive.openBox('e2e_keys');
+
       final savedKeyPair = _keyStore?.get('local_keypair');
       
       if (savedKeyPair != null) {
-        // Restaurar chave existente
+        
         _localKeyPair = await _deserializeKeyPair(savedKeyPair);
         DebugUtils.log('Restored existing keypair', tag: 'E2E');
       } else {
-        // Gerar nova chave
-        _localKeyPair = await _x25519.newKeyPair();
         
-        // Salvar para persistência
+        _localKeyPair = await _x25519.newKeyPair();
+
         final serialized = await _serializeKeyPair(_localKeyPair!);
         await _keyStore?.put('local_keypair', serialized);
         
@@ -73,7 +60,6 @@ class E2EEncryption {
     }
   }
 
-  /// Obter chave pública local
   Future<Uint8List> getPublicKey() async {
     if (_localKeyPair == null) {
       throw Exception('Not initialized');
@@ -83,7 +69,6 @@ class E2EEncryption {
     return Uint8List.fromList(publicKey.bytes);
   }
 
-  /// Estabelecer sessão com peer
   Future<void> computeSharedSecret(
     Uint8List remotePublicKeyBytes, {
     String? sessionId,
@@ -93,19 +78,17 @@ class E2EEncryption {
     }
 
     try {
-      // Criar SimplePublicKey do peer
+      
       _remotePublicKey = SimplePublicKey(
         remotePublicKeyBytes,
         type: KeyPairType.x25519,
       );
 
-      // Calcular shared secret usando ECDH
       final sharedSecretKey = await _x25519.sharedSecretKey(
         keyPair: _localKeyPair!,
         remotePublicKey: _remotePublicKey!,
       );
 
-      // Derivar chave final usando HKDF (Key Derivation Function)
       final hkdf = Hkdf(
         hmac: Hmac(_sha256),
         outputLength: 32,
@@ -121,7 +104,6 @@ class E2EEncryption {
       _sessionCreated = DateTime.now();
       _messagesEncrypted = 0;
 
-      // Salvar session info
       await _saveSessionInfo();
 
       DebugUtils.log('Shared secret computed for session: $_sessionId', tag: 'E2E');
@@ -131,7 +113,6 @@ class E2EEncryption {
     }
   }
 
-  /// Encriptar mensagem (otimizado)
   Future<Map<String, dynamic>> encrypt(String plaintext) async {
     if (_sharedSecret == null) {
       throw Exception('Shared secret not established');
@@ -147,8 +128,7 @@ class E2EEncryption {
       );
 
       _messagesEncrypted++;
-      
-      // Verificar se precisa rotacionar chaves
+
       if (needsKeyRotation) {
         DebugUtils.log('Key rotation needed', tag: 'E2E');
       }
@@ -166,7 +146,6 @@ class E2EEncryption {
     }
   }
 
-  /// Decriptar mensagem (otimizado)
   Future<String> decrypt(Map<String, dynamic> encrypted) async {
     if (_sharedSecret == null) {
       throw Exception('Shared secret not established');
@@ -191,7 +170,6 @@ class E2EEncryption {
     }
   }
 
-  /// Encriptar bytes (para arquivos) - OTIMIZADO para grandes volumes
   Future<Map<String, dynamic>> encryptBytes(
     Uint8List data, {
     Function(double)? onProgress,
@@ -201,11 +179,11 @@ class E2EEncryption {
     }
 
     try {
-      // Para dados grandes, processar em chunks
-      const chunkSize = 256 * 1024; // 256KB chunks
+      
+      const chunkSize = 256 * 1024; 
       
       if (data.length <= chunkSize) {
-        // Pequeno, processar de uma vez
+        
         final nonce = _chacha20.newNonce();
         final secretBox = await _chacha20.encrypt(
           data,
@@ -219,7 +197,7 @@ class E2EEncryption {
           'mac': secretBox.mac.bytes,
         };
       } else {
-        // Grande, processar em chunks
+        
         final chunks = <Map<String, dynamic>>[];
         int processed = 0;
 
@@ -255,7 +233,6 @@ class E2EEncryption {
     }
   }
 
-  /// Decriptar bytes (otimizado)
   Future<Uint8List> decryptBytes(
     Map<String, dynamic> encrypted, {
     Function(double)? onProgress,
@@ -265,7 +242,7 @@ class E2EEncryption {
     }
 
     try {
-      // Verificar se é chunked
+      
       if (encrypted.containsKey('chunks')) {
         final chunks = encrypted['chunks'] as List;
         final result = <int>[];
@@ -291,7 +268,7 @@ class E2EEncryption {
 
         return Uint8List.fromList(result);
       } else {
-        // Single block
+        
         final secretBox = SecretBox(
           encrypted['ciphertext'] as Uint8List,
           nonce: encrypted['nonce'] as List<int>,
@@ -311,7 +288,6 @@ class E2EEncryption {
     }
   }
 
-  /// Rotacionar chaves (Perfect Forward Secrecy)
   Future<void> rotateKeys() async {
     if (_remotePublicKey == null) {
       throw Exception('No remote key to rotate with');
@@ -319,10 +295,8 @@ class E2EEncryption {
 
     DebugUtils.log('Rotating keys...', tag: 'E2E');
 
-    // Gerar novo par de chaves efêmero
     final newLocalKeyPair = await _x25519.newKeyPair();
 
-    // Recalcular shared secret
     final newSharedSecretKey = await _x25519.sharedSecretKey(
       keyPair: newLocalKeyPair,
       remotePublicKey: _remotePublicKey!,
@@ -338,7 +312,6 @@ class E2EEncryption {
       nonce: utf8.encode('speew-rotation-${DateTime.now().millisecondsSinceEpoch}'),
     );
 
-    // Atualizar keypair local efêmero (não persistir - é efêmero!)
     _localKeyPair = newLocalKeyPair;
     _sessionCreated = DateTime.now();
     _messagesEncrypted = 0;
@@ -346,7 +319,6 @@ class E2EEncryption {
     DebugUtils.log('Keys rotated successfully', tag: 'E2E');
   }
 
-  /// Fingerprint da chave pública (para verificação)
   Future<String> getPublicKeyFingerprint() async {
     final publicKeyBytes = await getPublicKey();
     final hash = await _sha256.hash(publicKeyBytes);
@@ -358,7 +330,6 @@ class E2EEncryption {
         .toUpperCase();
   }
 
-  /// Verificar fingerprint do peer
   Future<String> getRemoteKeyFingerprint() async {
     if (_remotePublicKey == null) {
       throw Exception('Remote public key not set');
@@ -373,7 +344,6 @@ class E2EEncryption {
         .toUpperCase();
   }
 
-  /// Salvar informações da sessão
   Future<void> _saveSessionInfo() async {
     await _keyStore?.put('session_info', {
       'session_id': _sessionId,
@@ -382,7 +352,6 @@ class E2EEncryption {
     });
   }
 
-  /// Serializar keypair
   Future<Map<String, dynamic>> _serializeKeyPair(SimpleKeyPair keyPair) async {
     final privateBytes = await keyPair.extractPrivateKeyBytes();
     final publicKey = await keyPair.extractPublicKey();
@@ -393,7 +362,6 @@ class E2EEncryption {
     };
   }
 
-  /// Deserializar keypair
   Future<SimpleKeyPair> _deserializeKeyPair(Map<String, dynamic> data) async {
     final privateBytes = base64Decode(data['private'] as String);
     return SimpleKeyPairData(
@@ -410,7 +378,6 @@ class E2EEncryption {
     return 'session_${DateTime.now().millisecondsSinceEpoch}';
   }
 
-  /// Reset (para novo peer)
   void reset() {
     _remotePublicKey = null;
     _sharedSecret = null;
@@ -421,7 +388,6 @@ class E2EEncryption {
     DebugUtils.log('E2E session reset', tag: 'E2E');
   }
 
-  /// Estatísticas da sessão
   Map<String, dynamic> getSessionStats() {
     return {
       'session_id': _sessionId,
@@ -437,11 +403,9 @@ class E2EEncryption {
   }
 }
 
-/// Gerenciador de múltiplas sessões E2E
 class E2EManager {
   final Map<String, E2EEncryption> _sessions = {};
 
-  /// Obter ou criar sessão E2E para um peer
   E2EEncryption getSession(String peerId) {
     if (!_sessions.containsKey(peerId)) {
       _sessions[peerId] = E2EEncryption();
@@ -449,7 +413,6 @@ class E2EManager {
     return _sessions[peerId]!;
   }
 
-  /// Inicializar sessão
   Future<void> initializeSession(String peerId) async {
     final session = getSession(peerId);
     if (!session.isInitialized) {
@@ -457,7 +420,6 @@ class E2EManager {
     }
   }
 
-  /// Trocar chaves com peer
   Future<void> exchangeKeys(
     String peerId,
     Uint8List remotePublicKey, {
@@ -467,26 +429,22 @@ class E2EManager {
     await session.computeSharedSecret(remotePublicKey, sessionId: sessionId);
   }
 
-  /// Verificar se sessão está pronta
   bool isSessionReady(String peerId) {
     final session = _sessions[peerId];
     return session?.hasSharedSecret ?? false;
   }
 
-  /// Limpar sessão
   void clearSession(String peerId) {
     _sessions[peerId]?.reset();
     _sessions.remove(peerId);
     DebugUtils.log('E2E session cleared for $peerId', tag: 'E2E');
   }
 
-  /// Limpar todas as sessões
   void clearAllSessions() {
     _sessions.clear();
     DebugUtils.log('All E2E sessions cleared', tag: 'E2E');
   }
 
-  /// Obter estatísticas de todas as sessões
   Map<String, dynamic> getAllStats() {
     return _sessions.map(
       (peerId, session) => MapEntry(peerId, session.getSessionStats()),

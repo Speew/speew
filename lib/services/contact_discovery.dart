@@ -3,54 +3,41 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import '../core/utils.dart';
 
-/// Sistema de descoberta de contatos sem servidor
-/// Usa hashes de contatos para privacidade (como Signal)
 class ContactDiscovery {
   final Map<String, Contact> _contacts = {};
-  final Map<String, String> _hashToContact = {}; // hash -> contactId
+  final Map<String, String> _hashToContact = {}; 
   
   final StreamController<DiscoveryEvent> _eventController =
       StreamController<DiscoveryEvent>.broadcast();
 
   Stream<DiscoveryEvent> get eventStream => _eventController.stream;
 
-  /// Adicionar contato local
   Future<void> addContact(Contact contact) async {
     _contacts[contact.id] = contact;
-    
-    // Gerar hash do contato para privacy-preserving discovery
+
     final hash = _generateContactHash(contact);
     _hashToContact[hash] = contact.id;
     
     DebugUtils.log('Contact added: ${contact.name}', tag: 'CONTACTS');
   }
 
-  /// Descobrir contatos que também usam o app
-  /// Método privacy-preserving: envia apenas hashes
   Future<List<Contact>> discoverContacts(List<Contact> localContacts) async {
     final discovered = <Contact>[];
     
     try {
-      // Gerar hashes de todos os contatos locais
-      final hashes = localContacts.map(_generateContactHash).toList();
       
-      // Enviar hashes (não números) para peers via P2P broadcast
+      final hashes = localContacts.map(_generateContactHash).toList();
+
       final payload = {
         'type': 'contact_discovery',
         'hashes': hashes,
       };
-      
-      // Broadcast via mesh network
-      // await p2p.broadcast(jsonEncode(payload));
-      
+
       DebugUtils.log(
         'Sent ${hashes.length} contact hashes for discovery',
         tag: 'CONTACTS',
       );
-      
-      // Aguardar respostas...
-      // Em produção: usar timeout e processar respostas assíncronas
-      
+
     } catch (e) {
       DebugUtils.logError('Contact discovery failed', error: e);
     }
@@ -58,11 +45,9 @@ class ContactDiscovery {
     return discovered;
   }
 
-  /// Processar request de descoberta recebido
   Future<void> processDiscoveryRequest(List<String> receivedHashes) async {
     final matches = <String>[];
-    
-    // Verificar quais hashes coincidem com nossos contatos
+
     for (final hash in receivedHashes) {
       if (_hashToContact.containsKey(hash)) {
         matches.add(hash);
@@ -71,10 +56,7 @@ class ContactDiscovery {
     
     if (matches.isNotEmpty) {
       DebugUtils.log('Found ${matches.length} mutual contacts', tag: 'CONTACTS');
-      
-      // Enviar resposta apenas com matches
-      // await p2p.send(senderId, {'matches': matches});
-      
+
       _eventController.add(DiscoveryEvent(
         type: DiscoveryEventType.mutualContactsFound,
         count: matches.length,
@@ -82,29 +64,23 @@ class ContactDiscovery {
     }
   }
 
-  /// Gerar hash de contato (SHA-256)
-  /// Hash garante privacidade - impossível reverter para número
   String _generateContactHash(Contact contact) {
-    // Normalizar número (remover espaços, traços, etc)
-    final normalized = _normalizePhoneNumber(contact.phoneNumber ?? contact.id);
     
-    // Adicionar salt do app para prevenir rainbow tables
+    final normalized = _normalizePhoneNumber(contact.phoneNumber ?? contact.id);
+
     const appSalt = 'speew_v1_contact_discovery';
     final salted = '$normalized:$appSalt';
-    
-    // SHA-256
+
     final bytes = utf8.encode(salted);
     final digest = sha256.convert(bytes);
     
     return digest.toString();
   }
 
-  /// Normalizar número de telefone
   String _normalizePhoneNumber(String phone) {
-    // Remover tudo exceto dígitos
-    final digitsOnly = phone.replaceAll(RegExp(r'[^\d+]'), '');
     
-    // Se começa com 0, remover (código local)
+    final digitsOnly = phone.replaceAll(RegExp(r'[^\d+]'), '');
+
     if (digitsOnly.startsWith('0')) {
       return digitsOnly.substring(1);
     }
@@ -112,13 +88,9 @@ class ContactDiscovery {
     return digitsOnly;
   }
 
-  /// Importar contatos do sistema
   Future<List<Contact>> importSystemContacts() async {
     try {
-      // Usar package contacts_service ou flutter_contacts
-      // final systemContacts = await ContactsService.getContacts();
-      
-      // Simulação
+
       final imported = <Contact>[
         Contact(
           id: '1',
@@ -145,7 +117,6 @@ class ContactDiscovery {
     }
   }
 
-  /// Sincronizar contatos periodicamente
   void startPeriodicSync({Duration interval = const Duration(hours: 6)}) {
     Timer.periodic(interval, (_) async {
       final contacts = await importSystemContacts();
@@ -155,12 +126,10 @@ class ContactDiscovery {
     DebugUtils.log('Periodic contact sync started', tag: 'CONTACTS');
   }
 
-  /// Obter contatos usando o app
   List<Contact> getContactsOnApp() {
     return _contacts.values.where((c) => c.isOnApp).toList();
   }
 
-  /// Buscar contato
   Contact? findContact(String query) {
     query = query.toLowerCase();
     
@@ -174,7 +143,6 @@ class ContactDiscovery {
     return null;
   }
 
-  /// Obter todos os contatos
   List<Contact> getAllContacts() {
     return _contacts.values.toList()
       ..sort((a, b) => a.name.compareTo(b.name));
@@ -255,9 +223,8 @@ enum DiscoveryEventType {
   syncCompleted,
 }
 
-/// QR Code para adicionar contatos rapidamente
 class QRContactSharing {
-  /// Gerar QR code data
+  
   static String generateQRData(Contact contact) {
     final data = {
       'type': 'speew_contact',
@@ -270,7 +237,6 @@ class QRContactSharing {
     return jsonEncode(data);
   }
 
-  /// Parse QR code data
   static Contact? parseQRData(String qrData) {
     try {
       final data = jsonDecode(qrData) as Map<String, dynamic>;
@@ -289,7 +255,6 @@ class QRContactSharing {
   }
 }
 
-/// Grupos de contatos
 class ContactGroup {
   final String id;
   final String name;

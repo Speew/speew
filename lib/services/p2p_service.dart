@@ -1,351 +1,354 @@
 import 'dart:async';
-import 'dart:convert';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:nearby_connections/nearby_connections.dart';
 import '../models/peer.dart';
-import '../models/mesh_route.dart';
-import 'mesh_routing_service.dart';
-import '../core/utils.dart';
+import 'crypto_service.dart';
+import 'storage_service.dart';
 
 class P2PService {
-  final MeshRoutingService _meshRouting = MeshRoutingService();
-  final Nearby _nearby = Nearby();
-  final StreamController<Peer> _discoveredPeersController =
-      StreamController<Peer>.broadcast();
-  final StreamController<Map<String, dynamic>> _messagesController =
-      StreamController<Map<String, dynamic>>.broadcast();
-  final StreamController<String> _connectionStatusController =
-      StreamController<String>.broadcast();
+  final CryptoService _cryptoService;
+  final StorageService _storageService;
 
-  final Map<String, Peer> _discoveredPeers = {};
-  final List<String> _connectedPeers = [];
-  
-  String? _myDeviceId;
+  P2PService({
+    required CryptoService cryptoService,
+    required StorageService storageService,
+  })  : _cryptoService = cryptoService,
+        _storageService = storageService;
+
+  final Nearby _nearby = Nearby();
+  final Strategy _strategy = Strategy.P2P_CLUSTER;
+
+  final _messageController = StreamController<Map<String, dynamic>>.broadcast();
+  final _typingController = StreamController<Map<String, dynamic>>.broadcast();
+  final _connectionStatusController = StreamController<ConnectionStatus>.broadcast();
+  final _peersController = StreamController<Map<String, dynamic>>.broadcast();
+
+  final Map<String, Peer> _connectedPeers = {};
+  final Map<String, Peer> _nearbyPeers = {};
+  final Map<String, Timer> _heartbeats = {};
+  final Map<String, int> _retryCount = {};
+
+  String _currentUserId = '';
+  String _userName = '';
   bool _isAdvertising = false;
   bool _isDiscovering = false;
-  bool _meshEnabled = false; // Mesh multi-hop habilitado
 
-  // Getters
-  Stream<Peer> get discoveredPeersStream => _discoveredPeersController.stream;
-  Stream<Map<String, dynamic>> get messagesStream => _messagesController.stream;
-  Stream<String> get connectionStatusStream => _connectionStatusController.stream;
-  
-  List<Peer> get discoveredPeers => _discoveredPeers.values.toList();
-  List<String> get connectedPeerIds => List.from(_connectedPeers);
-  bool get isAdvertising => _isAdvertising;
-  bool get isDiscovering => _isDiscovering;
-  bool get isMeshEnabled => _meshEnabled;
+  Stream<Map<String, dynamic>> get messageStream => _messageController.stream;
+  Stream<Map<String, dynamic>> get typingStream => _typingController.stream;
+  Stream<ConnectionStatus> get connectionStatusStream => _connectionStatusController.stream;
+  Stream<Map<String, dynamic>> get peersStream => _peersController.stream;
 
-  // Inicializar mesh routing
-  void initializeMesh(String deviceId) {
-    _myDeviceId = deviceId;
-    _meshRouting.initialize(deviceId);
-    _meshEnabled = true;
-    
-    // Escutar pacotes outgoing do mesh routing
-    _meshRouting.outgoingPacketsStream.listen(_sendMeshPacket);
-    
-    // Escutar pacotes entregues
-    _meshRouting.deliveredPacketsStream.listen(_handleDeliveredPacket);
-    
-    DebugUtils.log('Mesh routing initialized', tag: 'P2P');
+  String get currentUserId => _currentUserId;
+  List<Peer> get connectedPeers => _connectedPeers.values.toList();
+  List<Peer> get nearbyPeers => _nearbyPeers.values.toList();
+
+  Future<void> initialize(String userId, String userName) async {
+    _currentUserId = userId;
+    _userName = userName;
+    await _nearby.askLocationAndExternalStoragePermission();
+    await _cryptoService.initialize();
   }
 
-  // Enviar mensagem via mesh
-  Future<bool> sendMeshMessage(String destinationId, String content) async {
-    if (!_meshEnabled) {
-      DebugUtils.log('Mesh not enabled, using direct send', tag: 'P2P');
-      return await sendMessage(destinationId, content);
-    }
+  Future<bool> startAdvertising() async {
+    if (_userName.isEmpty) return false;
 
-    return await _meshRouting.sendMessage(
-      destinationId: destinationId,
-      content: content,
-    );
-  }
-
-  // Enviar pacote mesh pela rede
-  Future<void> _sendMeshPacket(MeshPacket packet) async {
     try {
-      // Determinar próximo hop
-      final nextHop = _getNextHop(packet);
-      
-      if (nextHop == null) {
-        DebugUtils.log('No next hop for packet, broadcasting', tag: 'P2P');
-        // Broadcast para todos os peers conectados
-        for (final peerId in _connectedPeers) {
-          await _sendPacketToPeer(peerId, packet);
-        }
-      } else {
-        // Enviar para próximo hop específico
-        await _sendPacketToPeer(nextHop, packet);
-      }
-    } catch (e) {
-      DebugUtils.logError('Error sending mesh packet', error: e);
-    }
-  }
-
-  // Enviar pacote para um peer específico
-  Future<void> _sendPacketToPeer(String peerId, MeshPacket packet) async {
-    final payload = jsonEncode({
-      'type': 'mesh_packet',
-      'packet': packet.toJson(),
-    });
-
-    await _nearby.sendBytesPayload(peerId, utf8.encode(payload));
-    DebugUtils.log('Sent mesh packet to $peerId', tag: 'P2P');
-  }
-
-  // Determinar próximo hop para um pacote
-  String? _getNextHop(MeshPacket packet) {
-    // Verificar se destino está diretamente conectado
-    if (_connectedPeers.contains(packet.destinationId)) {
-      return packet.destinationId;
-    }
-
-    // Consultar tabela de rotas
-    final route = _meshRouting.routingTable[packet.destinationId];
-    if (route != null && route.hops.isNotEmpty) {
-      // Retornar primeiro hop da rota
-      return route.hops.first;
-    }
-
-    // Sem rota conhecida
-    return null;
-  }
-
-  // Processar pacote mesh entregue
-  void _handleDeliveredPacket(MeshPacket packet) {
-    DebugUtils.log('Mesh packet delivered: ${packet.id}', tag: 'P2P');
-    
-    // Adicionar à stream de mensagens para ser processado pelo ChatProvider
-    _messagesController.add({
-      'sender_id': packet.senderId,
-      'content': packet.content,
-      'timestamp': packet.timestamp.millisecondsSinceEpoch,
-      'via_mesh': true,
-      'hop_count': packet.hopCount,
-    });
-  }
-
-  // Obter estatísticas mesh
-  Map<String, dynamic> getMeshStatistics() {
-    if (!_meshEnabled) {
-      return {'enabled': false};
-    }
-    return _meshRouting.getStatistics();
-  }
-
-  // Iniciar como servidor (advertising)
-  Future<bool> startAdvertising(String userName) async {
-    try {
-      final result = await _nearby.startAdvertising(
-        userName,
-        Strategy.P2P_CLUSTER,
+      _isAdvertising = await _nearby.startAdvertising(
+        _userName,
+        _strategy,
         onConnectionInitiated: _onConnectionInitiated,
         onConnectionResult: _onConnectionResult,
         onDisconnected: _onDisconnected,
       );
 
-      _isAdvertising = result;
-      _connectionStatusController.add('Advertising as: $userName');
-      return result;
+      if (_isAdvertising) {
+        _connectionStatusController.add(ConnectionStatus.connected);
+      }
+
+      return _isAdvertising;
     } catch (e) {
-      _connectionStatusController.add('Error advertising: $e');
+      _connectionStatusController.add(ConnectionStatus.error);
       return false;
     }
   }
 
-  // Iniciar descoberta de peers
-  Future<bool> startDiscovery(String userName) async {
+  Future<bool> startDiscovery() async {
+    if (_userName.isEmpty) return false;
+
     try {
-      final result = await _nearby.startDiscovery(
-        userName,
-        Strategy.P2P_CLUSTER,
+      _isDiscovering = await _nearby.startDiscovery(
+        _userName,
+        _strategy,
         onEndpointFound: _onEndpointFound,
         onEndpointLost: _onEndpointLost,
       );
 
-      _isDiscovering = result;
-      _connectionStatusController.add('Discovering peers...');
-      return result;
+      if (_isDiscovering) {
+        _connectionStatusController.add(ConnectionStatus.connected);
+      }
+
+      return _isDiscovering;
     } catch (e) {
-      _connectionStatusController.add('Error discovering: $e');
+      _connectionStatusController.add(ConnectionStatus.error);
       return false;
     }
   }
 
-  // Parar advertising
   Future<void> stopAdvertising() async {
     await _nearby.stopAdvertising();
     _isAdvertising = false;
   }
 
-  // Parar discovery
   Future<void> stopDiscovery() async {
     await _nearby.stopDiscovery();
     _isDiscovering = false;
   }
 
-  // Conectar a um peer
-  Future<void> connectToPeer(String endpointId, String userName) async {
+  Future<bool> connectToPeer(String peerId) async {
+    final peer = _nearbyPeers[peerId];
+    if (peer == null) return false;
+
     try {
-      await _nearby.requestConnection(
-        userName,
-        endpointId,
+      final result = await _nearby.requestConnection(
+        _userName,
+        peerId,
         onConnectionInitiated: _onConnectionInitiated,
         onConnectionResult: _onConnectionResult,
         onDisconnected: _onDisconnected,
       );
-      
-      _connectionStatusController.add('Requesting connection to: $endpointId');
+
+      return result;
     } catch (e) {
-      _connectionStatusController.add('Error connecting: $e');
-    }
-  }
-
-  // Desconectar de um peer
-  Future<void> disconnectFromPeer(String endpointId) async {
-    try {
-      await _nearby.disconnectFromEndpoint(endpointId);
-      _connectedPeers.remove(endpointId);
-      
-      if (_discoveredPeers.containsKey(endpointId)) {
-        _discoveredPeers[endpointId] = _discoveredPeers[endpointId]!
-            .copyWith(isConnected: false);
-      }
-      
-      _connectionStatusController.add('Disconnected from: $endpointId');
-    } catch (e) {
-      _connectionStatusController.add('Error disconnecting: $e');
-    }
-  }
-
-  // Enviar mensagem
-  Future<bool> sendMessage(String peerId, String message) async {
-    try {
-      final payload = jsonEncode({
-        'type': 'message',
-        'content': message,
-        'timestamp': DateTime.now().millisecondsSinceEpoch,
-      });
-
-      await _nearby.sendBytesPayload(
-        peerId,
-        utf8.encode(payload),
-      );
-
-      return true;
-    } catch (e) {
-      _connectionStatusController.add('Error sending message: $e');
+      _retryConnection(peerId);
       return false;
     }
   }
 
-  // Callbacks
-  void _onEndpointFound(String endpointId, String endpointName, String serviceId) {
+  Future<bool> acceptConnection(String peerId) async {
+    try {
+      final result = await _nearby.acceptConnection(
+        peerId,
+        onPayLoadRecieved: _onPayloadReceived,
+      );
+
+      if (result) {
+        await _exchangeKeys(peerId);
+        _startHeartbeat(peerId);
+      }
+
+      return result;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> rejectConnection(String peerId) async {
+    try {
+      return await _nearby.rejectConnection(peerId);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> sendMessage({
+    required String peerId,
+    required String message,
+    bool isGroup = false,
+  }) async {
+    try {
+      final encrypted = await _cryptoService.encryptMessage(message, peerId);
+      await _nearby.sendBytesPayload(peerId, Uint8List.fromList(encrypted.codeUnits));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> sendFile({
+    required String peerId,
+    required String filePath,
+  }) async {
+    try {
+      await _nearby.sendFilePayload(peerId, filePath);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  void sendTypingIndicator(String peerId, bool isTyping) {
+    final data = {'type': 'typing', 'isTyping': isTyping};
+    _nearby.sendBytesPayload(peerId, Uint8List.fromList(data.toString().codeUnits));
+  }
+
+  Future<void> disconnectFromPeer(String peerId) async {
+    await _nearby.disconnectFromEndpoint(peerId);
+    _heartbeats[peerId]?.cancel();
+    _heartbeats.remove(peerId);
+    _connectedPeers.remove(peerId);
+    _retryCount.remove(peerId);
+    _updatePeersList();
+  }
+
+  Future<void> refreshPeers() async {
+    for (final peer in _connectedPeers.values) {
+      if (peer.isConnected) {
+        final lastSeen = peer.lastSeen?.millisecondsSinceEpoch ?? 0;
+        final now = DateTime.now().millisecondsSinceEpoch;
+        if (now - lastSeen > 60000) {
+          peer.isConnected = false;
+          await _storageService.updatePeerStatus(peer.id, false);
+        }
+      }
+    }
+    _updatePeersList();
+  }
+
+  void _onEndpointFound(String endpointId, String name, String serviceId) {
     final peer = Peer(
       id: endpointId,
-      name: endpointName,
-      lastSeen: DateTime.now(),
+      name: name,
       isConnected: false,
+      lastSeen: DateTime.now(),
     );
 
-    _discoveredPeers[endpointId] = peer;
-    _discoveredPeersController.add(peer);
-    _connectionStatusController.add('Found peer: $endpointName');
+    _nearbyPeers[endpointId] = peer;
+    _updatePeersList();
   }
 
   void _onEndpointLost(String? endpointId) {
     if (endpointId != null) {
-      _discoveredPeers.remove(endpointId);
-      _connectionStatusController.add('Lost peer: $endpointId');
+      _nearbyPeers.remove(endpointId);
+      _updatePeersList();
     }
   }
 
   void _onConnectionInitiated(String endpointId, ConnectionInfo info) {
-    _connectionStatusController.add(
-      'Connection initiated with: ${info.endpointName}',
-    );
-    
-    // Auto-aceitar conexão
-    _nearby.acceptConnection(
-      endpointId,
-      onPayLoadRecieved: _onPayloadReceived,
-      onPayloadTransferUpdate: _onPayloadTransferUpdate,
-    );
+    // Auto-accept connections for now
+    acceptConnection(endpointId);
   }
 
   void _onConnectionResult(String endpointId, Status status) {
     if (status == Status.CONNECTED) {
-      _connectedPeers.add(endpointId);
-      
-      if (_discoveredPeers.containsKey(endpointId)) {
-        _discoveredPeers[endpointId] = _discoveredPeers[endpointId]!
-            .copyWith(isConnected: true);
-      }
-      
-      _connectionStatusController.add('Connected to: $endpointId');
-    } else {
-      _connectionStatusController.add('Connection failed: $endpointId');
+      final peer = _nearbyPeers[endpointId] ?? Peer(id: endpointId, name: 'Unknown');
+      peer.isConnected = true;
+      peer.lastSeen = DateTime.now();
+
+      _connectedPeers[endpointId] = peer;
+      _nearbyPeers.remove(endpointId);
+      _storageService.savePeer(peer);
+      _storageService.updatePeerStatus(endpointId, true);
+
+      _startHeartbeat(endpointId);
+      _retryCount.remove(endpointId);
+      _updatePeersList();
     }
   }
 
   void _onDisconnected(String endpointId) {
-    _connectedPeers.remove(endpointId);
-    
-    if (_discoveredPeers.containsKey(endpointId)) {
-      _discoveredPeers[endpointId] = _discoveredPeers[endpointId]!
-          .copyWith(isConnected: false);
+    final peer = _connectedPeers[endpointId];
+    if (peer != null) {
+      peer.isConnected = false;
+      _storageService.updatePeerStatus(endpointId, false);
     }
-    
-    _connectionStatusController.add('Disconnected from: $endpointId');
+
+    _heartbeats[endpointId]?.cancel();
+    _heartbeats.remove(endpointId);
+    _connectedPeers.remove(endpointId);
+
+    _retryConnection(endpointId);
+    _updatePeersList();
   }
 
-  void _onPayloadReceived(String endpointId, Payload payload) {
-    if (payload.type == PayloadType.BYTES) {
+  void _onPayloadReceived(String endpointId, Payload payload) async {
+    if (payload.type == PayloadType.BYTES && payload.bytes != null) {
+      final content = String.fromCharCodes(payload.bytes!);
+
       try {
-        final data = utf8.decode(payload.bytes!);
-        final decoded = jsonDecode(data) as Map<String, dynamic>;
-        
-        // Verificar se é pacote mesh
-        if (decoded['type'] == 'mesh_packet') {
-          if (_meshEnabled) {
-            final packetData = decoded['packet'] as Map<String, dynamic>;
-            final packet = MeshPacket.fromJson(packetData);
-            _meshRouting.receivePacket(packet);
-          }
-          return;
-        }
-        
-        // Mensagem normal (não-mesh)
-        if (decoded['type'] == 'message') {
-          _messagesController.add({
-            'sender_id': endpointId,
-            'content': decoded['content'],
-            'timestamp': decoded['timestamp'],
-            'via_mesh': false,
-          });
+        final decrypted = await _cryptoService.decryptMessage(content, endpointId);
+
+        _messageController.add({
+          'senderId': endpointId,
+          'content': decrypted,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+          'type': 'text',
+        });
+
+        final peer = _connectedPeers[endpointId];
+        if (peer != null) {
+          peer.lastSeen = DateTime.now();
         }
       } catch (e) {
-        _connectionStatusController.add('Error receiving payload: $e');
+        // Handle typing indicator or other non-encrypted messages
+        if (content.contains('typing')) {
+          _typingController.add({
+            'peerId': endpointId,
+            'isTyping': content.contains('true'),
+          });
+        }
       }
+    } else if (payload.type == PayloadType.FILE) {
+      // Handle file received
     }
   }
 
-  void _onPayloadTransferUpdate(String endpointId, PayloadTransferUpdate update) {
-    // Callback para progresso de transferência (útil para arquivos grandes)
-    if (update.status == PayloadStatus.SUCCESS) {
-      _connectionStatusController.add('Payload transferred successfully');
+  Future<void> _exchangeKeys(String peerId) async {
+    try {
+      final publicKey = await _cryptoService.getPublicKey();
+      // Send public key to peer and receive their public key
+      // Derive shared secret
+    } catch (e) {
+      // Error handling
     }
   }
 
-  // Limpar recursos
+  void _startHeartbeat(String peerId) {
+    _heartbeats[peerId]?.cancel();
+    _heartbeats[peerId] = Timer.periodic(const Duration(seconds: 30), (timer) {
+      final peer = _connectedPeers[peerId];
+      if (peer != null && peer.isConnected) {
+        sendMessage(peerId: peerId, message: '__heartbeat__');
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  void _retryConnection(String peerId) {
+    final count = _retryCount[peerId] ?? 0;
+    if (count < 3) {
+      _retryCount[peerId] = count + 1;
+      Future.delayed(Duration(seconds: count * 2), () {
+        connectToPeer(peerId);
+      });
+    }
+  }
+
+  void _updatePeersList() {
+    _peersController.add({
+      'connected': _connectedPeers.values.toList(),
+      'nearby': _nearbyPeers.values.toList(),
+    });
+  }
+
   void dispose() {
     stopAdvertising();
     stopDiscovery();
-    _meshRouting.dispose();
-    _discoveredPeersController.close();
-    _messagesController.close();
+    for (final timer in _heartbeats.values) {
+      timer.cancel();
+    }
+    _messageController.close();
+    _typingController.close();
     _connectionStatusController.close();
+    _peersController.close();
   }
+}
+
+enum ConnectionStatus {
+  disconnected,
+  connecting,
+  connected,
+  reconnecting,
+  error,
 }

@@ -1,8 +1,6 @@
 import 'dart:async';
 import '../core/utils.dart';
 
-/// Compartilhamento de localização em tempo real
-/// Estilo WhatsApp Live Location, Telegram Location
 class LocationSharing {
   final Map<String, LiveLocation> _sharedLocations = {};
   final Map<String, Timer> _updateTimers = {};
@@ -12,7 +10,6 @@ class LocationSharing {
 
   Stream<LocationUpdate> get locationStream => _locationController.stream;
 
-  /// Compartilhar localização em tempo real
   Future<String?> shareLiveLocation({
     required Duration duration,
     required Function(Location) onUpdate,
@@ -30,13 +27,11 @@ class LocationSharing {
 
       _sharedLocations[sessionId] = liveLocation;
 
-      // Iniciar atualizações periódicas (a cada 5 segundos)
       _updateTimers[sessionId] = Timer.periodic(
         const Duration(seconds: 5),
         (_) => _updateLocation(sessionId, onUpdate),
       );
 
-      // Timer para parar compartilhamento
       Timer(duration, () => stopSharing(sessionId));
 
       DebugUtils.log(
@@ -51,7 +46,6 @@ class LocationSharing {
     }
   }
 
-  /// Atualizar localização
   Future<void> _updateLocation(
     String sessionId,
     Function(Location) onUpdate,
@@ -60,7 +54,7 @@ class LocationSharing {
     if (liveLocation == null || !liveLocation.isActive) return;
 
     try {
-      // Obter localização atual
+      
       final location = await _getCurrentLocation();
 
       if (location != null) {
@@ -68,10 +62,8 @@ class LocationSharing {
         liveLocation.lastUpdate = DateTime.now();
         liveLocation.updateCount++;
 
-        // Callback
         onUpdate(location);
 
-        // Notificar
         _locationController.add(LocationUpdate(
           sessionId: sessionId,
           location: location,
@@ -83,7 +75,6 @@ class LocationSharing {
     }
   }
 
-  /// Parar compartilhamento
   void stopSharing(String sessionId) {
     final liveLocation = _sharedLocations[sessionId];
     if (liveLocation != null) {
@@ -96,7 +87,6 @@ class LocationSharing {
     DebugUtils.log('Live location sharing stopped', tag: 'LOCATION');
   }
 
-  /// Compartilhar localização estática (uma vez)
   Future<Location?> shareStaticLocation() async {
     try {
       final location = await _getCurrentLocation();
@@ -115,15 +105,11 @@ class LocationSharing {
     }
   }
 
-  /// Obter localização atual
   Future<Location?> _getCurrentLocation() async {
     try {
-      // Usar geolocator ou location package
-      // final position = await Geolocator.getCurrentPosition();
-      
-      // Simulação
+
       return Location(
-        latitude: -23.5505, // São Paulo
+        latitude: -23.5505, 
         longitude: -46.6333,
         accuracy: 10.0,
         altitude: 760.0,
@@ -136,10 +122,9 @@ class LocationSharing {
     }
   }
 
-  /// Calcular distância entre dois pontos
   double calculateDistance(Location from, Location to) {
-    // Fórmula de Haversine
-    const earthRadius = 6371000.0; // metros
+    
+    const earthRadius = 6371000.0; 
 
     final dLat = _toRadians(to.latitude - from.latitude);
     final dLon = _toRadians(to.longitude - from.longitude);
@@ -155,7 +140,6 @@ class LocationSharing {
     return earthRadius * c;
   }
 
-  /// Formatar distância
   String formatDistance(double meters) {
     if (meters < 1000) {
       return '${meters.round()} m';
@@ -164,12 +148,10 @@ class LocationSharing {
     }
   }
 
-  /// Obter localização ativa
   LiveLocation? getLiveLocation(String sessionId) {
     return _sharedLocations[sessionId];
   }
 
-  /// Verificar se está compartilhando
   bool isSharing(String sessionId) {
     return _sharedLocations[sessionId]?.isActive ?? false;
   }
@@ -178,7 +160,6 @@ class LocationSharing {
     return 'loc_${DateTime.now().millisecondsSinceEpoch}';
   }
 
-  // Math helpers
   double _toRadians(double degrees) => degrees * 3.14159265359 / 180.0;
   double _sin(double x) => x - (x * x * x) / 6;
   double _cos(double x) => 1 - (x * x) / 2;
@@ -198,10 +179,10 @@ class LocationSharing {
 class Location {
   final double latitude;
   final double longitude;
-  final double accuracy; // metros
-  final double? altitude; // metros
-  final double? speed; // m/s
-  final double? heading; // graus (0-360)
+  final double accuracy; 
+  final double? altitude; 
+  final double? speed; 
+  final double? heading; 
   final DateTime timestamp;
 
   Location({
@@ -284,24 +265,20 @@ class LocationUpdate {
   });
 }
 
-/// Places Nearby (locais próximos)
 class PlacesNearby {
-  /// Buscar locais próximos
+  
   static Future<List<Place>> searchNearby({
     required Location location,
     required String query,
-    int radius = 1000, // metros
+    int radius = 1000, 
   }) async {
     try {
-      // Usar Google Places API ou Nominatim (OpenStreetMap)
-      // final places = await placesApi.searchNearby(...)
-      
+
       DebugUtils.log(
         'Searching places near ${location.coordinatesString}',
         tag: 'PLACES',
       );
 
-      // Simulação
       return [
         Place(
           id: '1',
@@ -322,12 +299,9 @@ class PlacesNearby {
     }
   }
 
-  /// Obter endereço de coordenadas (reverse geocoding)
   static Future<String?> getAddress(Location location) async {
     try {
-      // Usar Nominatim ou Google Geocoding API
-      // final address = await geocoding.getAddress(...)
-      
+
       return 'Rua Exemplo, 123 - São Paulo, SP';
     } catch (e) {
       return null;

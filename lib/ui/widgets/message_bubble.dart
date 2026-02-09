@@ -42,9 +42,9 @@ class MessageBubble extends StatelessWidget {
               topRight: const Radius.circular(AppTheme.radiusMedium),
               bottomLeft: isMe
                   ? const Radius.circular(AppTheme.radiusMedium)
-                  : Radius.zero,
+                  : const Radius.circular(0),
               bottomRight: isMe
-                  ? Radius.zero
+                  ? const Radius.circular(0)
                   : const Radius.circular(AppTheme.radiusMedium),
             ),
             boxShadow: [
@@ -58,7 +58,7 @@ class MessageBubble extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Message content
+              
               Text(
                 message.content,
                 style: TextStyle(
@@ -70,8 +70,7 @@ class MessageBubble extends StatelessWidget {
               ),
               
               const SizedBox(height: 4),
-              
-              // Time and status
+
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

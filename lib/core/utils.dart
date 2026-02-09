@@ -240,8 +240,8 @@ class UiUtils {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => WillPopScope(
-        onWillPop: () async => false,
+      builder: (context) => PopScope(
+        canPop: false,
         child: AlertDialog(
           content: Column(
             mainAxisSize: MainAxisSize.min,

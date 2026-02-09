@@ -1,14 +1,12 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import '../core/utils.dart';
 
 class NotificationService {
-  static final FlutterLocalNotificationsPlugin _notifications =
-      FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+  
+  bool _initialized = false;
+  Function(String)? onNotificationTap;
 
-  static bool _initialized = false;
-
-  // Inicializar serviço de notificações
-  static Future<void> initialize() async {
+  Future<void> initialize() async {
     if (_initialized) return;
 
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -18,49 +16,35 @@ class NotificationService {
       requestSoundPermission: true,
     );
 
-    const settings = InitializationSettings(
-      android: androidSettings,
-      iOS: iosSettings,
-    );
+    const settings = InitializationSettings(android: androidSettings, iOS: iosSettings);
 
-    await _notifications.initialize(
-      settings,
-      onDidReceiveNotificationResponse: _onNotificationTapped,
-    );
+    await _notifications.initialize(settings, onDidReceiveNotificationResponse: _onNotificationTapped);
 
     _initialized = true;
-    DebugUtils.log('Notification service initialized', tag: 'NOTIF');
   }
 
-  // Solicitar permissões (iOS)
-  static Future<bool> requestPermissions() async {
+  Future<bool> requestPermissions() async {
     if (!_initialized) await initialize();
 
     final result = await _notifications
-        .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>()
-        ?.requestPermissions(
-          alert: true,
-          badge: true,
-          sound: true,
-        );
+        .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+        ?.requestPermissions(alert: true, badge: true, sound: true);
 
     return result ?? true;
   }
 
-  // Mostrar notificação de mensagem
-  static Future<void> showMessageNotification({
-    required int id,
+  Future<void> showMessageNotification({
     required String title,
     required String body,
+    String? payload,
     String? imageUrl,
   }) async {
     if (!_initialized) await initialize();
 
     const androidDetails = AndroidNotificationDetails(
       'messages',
-      'Mensagens',
-      channelDescription: 'Notificações de novas mensagens',
+      'Messages',
+      channelDescription: 'New message notifications',
       importance: Importance.high,
       priority: Priority.high,
       showWhen: true,
@@ -74,65 +58,52 @@ class NotificationService {
       presentSound: true,
     );
 
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
+    const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
 
     await _notifications.show(
-      id,
+      DateTime.now().millisecondsSinceEpoch.remainder(100000),
       title,
       body,
       details,
+      payload: payload,
     );
-
-    DebugUtils.log('Notification shown: $title', tag: 'NOTIF');
   }
 
-  // Mostrar notificação de grupo
-  static Future<void> showGroupNotification({
-    required int id,
+  Future<void> showGroupNotification({
     required String groupName,
     required String senderName,
     required String message,
+    String? payload,
   }) async {
     await showMessageNotification(
-      id: id,
-      title: '$groupName',
+      title: groupName,
       body: '$senderName: $message',
+      payload: payload,
     );
   }
 
-  // Mostrar notificação de nova conexão
-  static Future<void> showConnectionNotification({
-    required int id,
+  Future<void> showConnectionNotification({
     required String peerName,
+    String? payload,
   }) async {
     await showMessageNotification(
-      id: id,
-      title: 'Nova Conexão',
-      body: '$peerName conectou-se',
+      title: 'New Connection',
+      body: '$peerName connected',
+      payload: payload,
     );
   }
 
-  // Cancelar notificação específica
-  static Future<void> cancelNotification(int id) async {
+  Future<void> cancelNotification(int id) async {
     await _notifications.cancel(id);
   }
 
-  // Cancelar todas as notificações
-  static Future<void> cancelAllNotifications() async {
+  Future<void> cancelAllNotifications() async {
     await _notifications.cancelAll();
   }
 
-  // Callback quando notificação é tocada
-  static void _onNotificationTapped(NotificationResponse response) {
-    DebugUtils.log('Notification tapped: ${response.payload}', tag: 'NOTIF');
-    // TODO: Navegar para tela apropriada
-  }
-
-  // Gerar ID único para notificação
-  static int generateNotificationId(String senderId) {
-    return senderId.hashCode.abs() % 100000;
+  void _onNotificationTapped(NotificationResponse response) {
+    if (response.payload != null) {
+      onNotificationTap?.call(response.payload!);
+    }
   }
 }

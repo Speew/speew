@@ -38,7 +38,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
 
           return Column(
             children: [
-              // Nome do grupo
+              
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: TextField(
@@ -52,7 +52,6 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                 ),
               ),
 
-              // Membros selecionados
               if (_selectedPeerIds.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -76,7 +75,6 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
 
               const Divider(),
 
-              // Lista de peers para adicionar
               Expanded(
                 child: connectedPeers.isEmpty
                     ? const Center(

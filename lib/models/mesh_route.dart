@@ -1,9 +1,9 @@
 class MeshRoute {
   final String destinationId;
-  final List<String> hops; // Lista de IDs dos peers intermediários
+  final List<String> hops; 
   final int hopCount;
   final DateTime timestamp;
-  final int quality; // 0-100, baseado em latência e confiabilidade
+  final int quality; 
 
   MeshRoute({
     required this.destinationId,
@@ -26,10 +26,13 @@ class MeshRoute {
   }
 
   factory MeshRoute.fromMap(Map<String, dynamic> map) {
+    final hopsStr = map['hops'] as String? ?? '';
     return MeshRoute(
-      destinationId: map['destination_id'] as String,
-      hops: (map['hops'] as String).split(','),
-      timestamp: DateTime.fromMillisecondsSinceEpoch(map['timestamp'] as int),
+      destinationId: map['destination_id'] as String? ?? '',
+      hops: hopsStr.isNotEmpty ? hopsStr.split(',') : [],
+      timestamp: map['timestamp'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['timestamp'] as int)
+          : DateTime.now(),
       quality: map['quality'] as int? ?? 50,
     );
   }
@@ -59,10 +62,10 @@ class MeshPacket {
   final String senderId;
   final String destinationId;
   final String content;
-  final List<String> path; // Caminho percorrido até agora
-  final int ttl; // Time to live (hops restantes)
+  final List<String> path; 
+  final int ttl; 
   final DateTime timestamp;
-  final String type; // 'message', 'route_discovery', 'route_reply', 'ack'
+  final String type; 
 
   MeshPacket({
     required this.id,
@@ -93,13 +96,15 @@ class MeshPacket {
 
   factory MeshPacket.fromJson(Map<String, dynamic> json) {
     return MeshPacket(
-      id: json['id'] as String,
-      senderId: json['sender_id'] as String,
-      destinationId: json['destination_id'] as String,
-      content: json['content'] as String,
-      path: List<String>.from(json['path'] as List),
-      ttl: json['ttl'] as int,
-      timestamp: DateTime.fromMillisecondsSinceEpoch(json['timestamp'] as int),
+      id: json['id'] as String? ?? '',
+      senderId: json['sender_id'] as String? ?? '',
+      destinationId: json['destination_id'] as String? ?? '',
+      content: json['content'] as String? ?? '',
+      path: json['path'] != null ? List<String>.from(json['path'] as List) : [],
+      ttl: json['ttl'] as int? ?? 64,
+      timestamp: json['timestamp'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(json['timestamp'] as int)
+          : DateTime.now(),
       type: json['type'] as String? ?? 'message',
     );
   }

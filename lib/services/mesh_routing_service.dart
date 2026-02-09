@@ -2,58 +2,43 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 import '../models/mesh_route.dart';
-import '../core/utils.dart';
+import 'p2p_service.dart';
 
 class MeshRoutingService {
-  // Tabela de rotas: destinationId -> MeshRoute
+  final P2PService _p2pService;
+
+  MeshRoutingService({required P2PService p2pService}) : _p2pService = p2pService;
+
   final Map<String, MeshRoute> _routingTable = {};
-  
-  // Cache de pacotes já processados (evita loops)
   final Set<String> _processedPackets = LinkedHashSet();
-  
-  // Fila de pacotes pendentes para reenvio
   final Queue<MeshPacket> _pendingPackets = Queue();
-  
-  // Stream de pacotes que precisam ser enviados
-  final StreamController<MeshPacket> _outgoingPacketsController =
-      StreamController<MeshPacket>.broadcast();
-  
-  // Stream de mensagens que chegaram ao destino final
-  final StreamController<MeshPacket> _deliveredPacketsController =
-      StreamController<MeshPacket>.broadcast();
-  
+  final Map<String, Timer> _routeTimers = {};
+
+  final StreamController<int> _routeCountController = StreamController<int>.broadcast();
+
   String? _myNodeId;
-  
-  // Configurações
-  static const int maxTTL = 5; // Máximo de hops
-  static const int maxProcessedCache = 1000; // Cache de pacotes processados
+
+  static const int maxTTL = 5;
+  static const int maxProcessedCache = 1000;
   static const int routeExpirationMinutes = 5;
   static const int maxPendingPackets = 100;
 
-  // Getters
-  Stream<MeshPacket> get outgoingPacketsStream => _outgoingPacketsController.stream;
-  Stream<MeshPacket> get deliveredPacketsStream => _deliveredPacketsController.stream;
+  Stream<int> get routeCountStream => _routeCountController.stream;
   Map<String, MeshRoute> get routingTable => Map.unmodifiable(_routingTable);
   int get pendingPacketsCount => _pendingPackets.length;
 
-  /// Inicializar com ID do nó atual
   void initialize(String nodeId) {
     _myNodeId = nodeId;
-    DebugUtils.log('Mesh routing initialized for node: $nodeId', tag: 'MESH');
+    _startRouteCleanup();
   }
 
-  /// Enviar mensagem através da mesh
   Future<bool> sendMessage({
     required String destinationId,
     required String content,
     String type = 'message',
   }) async {
-    if (_myNodeId == null) {
-      DebugUtils.logError('Node ID not initialized');
-      return false;
-    }
+    if (_myNodeId == null) return false;
 
-    // Criar pacote
     final packet = MeshPacket(
       id: _generatePacketId(),
       senderId: _myNodeId!,
@@ -68,40 +53,20 @@ class MeshRoutingService {
     return await _routePacket(packet);
   }
 
-  /// Receber e processar pacote da rede
   Future<void> receivePacket(MeshPacket packet) async {
     if (_myNodeId == null) return;
 
-    DebugUtils.log('Received packet: ${packet.id}', tag: 'MESH');
+    if (_processedPackets.contains(packet.id)) return;
 
-    // Verificar se já processamos este pacote (evita loops)
-    if (_processedPackets.contains(packet.id)) {
-      DebugUtils.log('Packet already processed, ignoring', tag: 'MESH');
-      return;
-    }
-
-    // Adicionar ao cache de processados
     _addToProcessedCache(packet.id);
 
-    // Verificar se pacote expirou
-    if (packet.isExpired) {
-      DebugUtils.log('Packet expired (TTL=0), dropping', tag: 'MESH');
-      return;
-    }
+    if (packet.isExpired) return;
 
-    // Se este nó é o destino
     if (packet.destinationId == _myNodeId) {
-      DebugUtils.log('Packet reached destination!', tag: 'MESH');
-      _deliveredPacketsController.add(packet);
-      
-      // Enviar ACK de volta
-      if (packet.type == 'message') {
-        _sendAcknowledgment(packet);
-      }
+      _handleDeliveredPacket(packet);
       return;
     }
 
-    // Processar tipos especiais de pacote
     if (packet.type == 'route_discovery') {
       _handleRouteDiscovery(packet);
       return;
@@ -112,48 +77,48 @@ class MeshRoutingService {
       return;
     }
 
-    // Fazer relay do pacote
     await _relayPacket(packet);
   }
 
-  /// Rotear pacote (encontrar melhor rota e enviar)
   Future<bool> _routePacket(MeshPacket packet) async {
-    // Verificar se temos rota para o destino
     final route = _routingTable[packet.destinationId];
 
     if (route != null && !route.isExpired) {
-      // Temos rota válida, usar
-      DebugUtils.log('Using cached route: $route', tag: 'MESH');
-      _outgoingPacketsController.add(packet);
+      await _sendViaRoute(packet, route);
       return true;
     }
 
-    // Não temos rota, fazer broadcast para descoberta
-    DebugUtils.log('No route found, initiating route discovery', tag: 'MESH');
     _initiateRouteDiscovery(packet.destinationId);
-    
-    // Adicionar pacote à fila de pendentes
     _addToPendingQueue(packet);
     return true;
   }
 
-  /// Fazer relay (retransmitir) de um pacote
+  Future<void> _sendViaRoute(MeshPacket packet, MeshRoute route) async {
+    if (route.hops.length <= 1) {
+      await _p2pService.sendMessage(peerId: packet.destinationId, message: packet.toJson());
+    } else {
+      final nextHop = route.hops[1];
+      await _p2pService.sendMessage(peerId: nextHop, message: packet.toJson());
+    }
+  }
+
   Future<void> _relayPacket(MeshPacket packet) async {
     if (_myNodeId == null) return;
 
-    // Decrementar TTL e adicionar nó atual ao caminho
     final relayedPacket = packet.withDecrementedTTL(_myNodeId!);
-
-    DebugUtils.log(
-      'Relaying packet ${packet.id} (TTL: ${relayedPacket.ttl})',
-      tag: 'MESH',
-    );
-
-    // Enviar pacote retransmitido
-    _outgoingPacketsController.add(relayedPacket);
+    
+    final route = _routingTable[packet.destinationId];
+    if (route != null) {
+      await _sendViaRoute(relayedPacket, route);
+    } else {
+      for (final peer in _p2pService.connectedPeers) {
+        if (!packet.path.contains(peer.id)) {
+          await _p2pService.sendMessage(peerId: peer.id, message: relayedPacket.toJson());
+        }
+      }
+    }
   }
 
-  /// Iniciar descoberta de rota
   void _initiateRouteDiscovery(String destinationId) {
     if (_myNodeId == null) return;
 
@@ -168,22 +133,15 @@ class MeshRoutingService {
       type: 'route_discovery',
     );
 
-    DebugUtils.log(
-      'Initiating route discovery for $destinationId',
-      tag: 'MESH',
-    );
-
-    _outgoingPacketsController.add(discoveryPacket);
+    for (final peer in _p2pService.connectedPeers) {
+      _p2pService.sendMessage(peerId: peer.id, message: discoveryPacket.toJson());
+    }
   }
 
-  /// Processar pacote de descoberta de rota
   void _handleRouteDiscovery(MeshPacket packet) {
     if (_myNodeId == null) return;
 
-    // Se este nó é o destino, enviar resposta de volta
     if (packet.destinationId == _myNodeId) {
-      DebugUtils.log('Route discovery reached destination', tag: 'MESH');
-      
       final replyPacket = MeshPacket(
         id: _generatePacketId(),
         senderId: _myNodeId!,
@@ -195,15 +153,13 @@ class MeshRoutingService {
         type: 'route_reply',
       );
 
-      _outgoingPacketsController.add(replyPacket);
+      _p2pService.sendMessage(peerId: packet.path.last, message: replyPacket.toJson());
       return;
     }
 
-    // Senão, fazer relay
     _relayPacket(packet);
   }
 
-  /// Processar resposta de rota
   void _handleRouteReply(MeshPacket packet) {
     if (_myNodeId == null) return;
 
@@ -211,7 +167,6 @@ class MeshRoutingService {
       final data = jsonDecode(packet.content) as Map<String, dynamic>;
       final route = List<String>.from(data['route'] as List);
 
-      // Adicionar rota à tabela
       final meshRoute = MeshRoute(
         destinationId: packet.senderId,
         hops: route,
@@ -220,17 +175,21 @@ class MeshRoutingService {
       );
 
       _routingTable[packet.senderId] = meshRoute;
-      
-      DebugUtils.log('Route added: $meshRoute', tag: 'MESH');
+      _startRouteExpiration(packet.senderId);
+      _routeCountController.add(_routingTable.length);
 
-      // Processar pacotes pendentes para este destino
       _processPendingPackets(packet.senderId);
     } catch (e) {
-      DebugUtils.logError('Error handling route reply', error: e);
+      // Error handling
     }
   }
 
-  /// Enviar acknowledgment de recebimento
+  void _handleDeliveredPacket(MeshPacket packet) {
+    if (packet.type == 'message') {
+      _sendAcknowledgment(packet);
+    }
+  }
+
   void _sendAcknowledgment(MeshPacket packet) {
     if (_myNodeId == null) return;
 
@@ -245,71 +204,70 @@ class MeshRoutingService {
       type: 'ack',
     );
 
-    _outgoingPacketsController.add(ackPacket);
+    _p2pService.sendMessage(peerId: packet.path.last, message: ackPacket.toJson());
   }
 
-  /// Processar pacotes pendentes para um destino
   void _processPendingPackets(String destinationId) {
     final packetsToSend = <MeshPacket>[];
-    
-    // Encontrar pacotes pendentes para este destino
-    final iterator = _pendingPackets.iterator;
-    while (iterator.moveNext()) {
-      final packet = iterator.current;
+
+    for (final packet in _pendingPackets) {
       if (packet.destinationId == destinationId) {
         packetsToSend.add(packet);
       }
     }
 
-    // Remover da fila e enviar
     for (final packet in packetsToSend) {
       _pendingPackets.remove(packet);
       _routePacket(packet);
     }
-
-    DebugUtils.log(
-      'Processed ${packetsToSend.length} pending packets',
-      tag: 'MESH',
-    );
   }
 
-  /// Adicionar pacote à fila de pendentes
   void _addToPendingQueue(MeshPacket packet) {
     if (_pendingPackets.length >= maxPendingPackets) {
-      // Remover o mais antigo
       _pendingPackets.removeFirst();
     }
     _pendingPackets.add(packet);
   }
 
-  /// Adicionar ao cache de pacotes processados
   void _addToProcessedCache(String packetId) {
     if (_processedPackets.length >= maxProcessedCache) {
-      // Remover o mais antigo
       _processedPackets.remove(_processedPackets.first);
     }
     _processedPackets.add(packetId);
   }
 
-  /// Calcular qualidade da rota (0-100)
   int _calculateRouteQuality(List<String> hops) {
-    // Quanto menos hops, melhor
     final hopPenalty = hops.length * 10;
     return (100 - hopPenalty).clamp(0, 100);
   }
 
-  /// Gerar ID único para pacote
   String _generatePacketId() {
     return '${_myNodeId}_${DateTime.now().millisecondsSinceEpoch}';
   }
 
-  /// Limpar rotas expiradas
-  void cleanExpiredRoutes() {
-    _routingTable.removeWhere((key, route) => route.isExpired);
-    DebugUtils.log('Cleaned expired routes', tag: 'MESH');
+  void _startRouteExpiration(String destinationId) {
+    _routeTimers[destinationId]?.cancel();
+    _routeTimers[destinationId] = Timer(
+      const Duration(minutes: routeExpirationMinutes),
+      () {
+        _routingTable.remove(destinationId);
+        _routeCountController.add(_routingTable.length);
+      },
+    );
   }
 
-  /// Obter estatísticas da mesh
+  void _startRouteCleanup() {
+    Timer.periodic(const Duration(minutes: 1), (timer) {
+      _routingTable.removeWhere((key, route) => route.isExpired);
+      _routeCountController.add(_routingTable.length);
+    });
+  }
+
+  void cleanExpiredRoutes() {
+    _routingTable.removeWhere((key, route) => route.isExpired);
+    _routeCountController.add(_routingTable.length);
+  }
+
   Map<String, dynamic> getStatistics() {
     return {
       'node_id': _myNodeId,
@@ -320,12 +278,13 @@ class MeshRoutingService {
     };
   }
 
-  /// Limpar tudo
   void dispose() {
     _routingTable.clear();
     _processedPackets.clear();
     _pendingPackets.clear();
-    _outgoingPacketsController.close();
-    _deliveredPacketsController.close();
+    for (final timer in _routeTimers.values) {
+      timer.cancel();
+    }
+    _routeCountController.close();
   }
 }

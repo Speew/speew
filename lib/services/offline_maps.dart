@@ -5,29 +5,19 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import '../core/utils.dart';
 
-/// Offline Maps - Mapas funcionam sem internet
-/// Features:
-/// - Tile caching inteligente
-/// - Predictive pre-loading
-/// - Compression automática
-/// - Priorização por uso
-/// - Cache LRU (Least Recently Used)
 class OfflineMaps {
   Database? _db;
   final Map<String, MapTile> _memoryCache = {};
-  
-  // Configurações
-  static const int maxCacheSize = 500 * 1024 * 1024; // 500MB
-  static const int maxMemoryCacheSize = 50 * 1024 * 1024; // 50MB in RAM
-  static const int tileSize = 256; // pixels
+
+  static const int maxCacheSize = 500 * 1024 * 1024; 
+  static const int maxMemoryCacheSize = 50 * 1024 * 1024; 
+  static const int tileSize = 256; 
   static const int maxZoomLevel = 18;
-  
-  // Estatísticas
+
   int _cacheHits = 0;
   int _cacheMisses = 0;
   int _currentCacheSize = 0;
 
-  /// Inicializar banco de dados de tiles
   Future<void> initialize() async {
     final dir = await getApplicationDocumentsDirectory();
     final dbPath = '${dir.path}/offline_maps.db';
@@ -65,23 +55,19 @@ class OfflineMaps {
       },
     );
 
-    // Calcular tamanho atual do cache
     await _calculateCacheSize();
 
     DebugUtils.log('Offline Maps initialized (${_formatSize(_currentCacheSize)} cached)', tag: 'MAPS');
   }
 
-  /// Obter tile do mapa
   Future<MapTile?> getTile(int x, int y, int zoom) async {
     final tileId = _getTileId(x, y, zoom);
 
-    // 1. Verificar cache em memória
     if (_memoryCache.containsKey(tileId)) {
       _cacheHits++;
       return _memoryCache[tileId];
     }
 
-    // 2. Verificar banco de dados
     final List<Map<String, dynamic>> results = await _db!.query(
       'tiles',
       where: 'id = ?',
@@ -98,27 +84,22 @@ class OfflineMaps {
         data: results[0]['data'] as Uint8List,
       );
 
-      // Atualizar estatísticas de acesso
       await _updateTileAccess(tileId);
 
-      // Adicionar ao cache de memória
       _addToMemoryCache(tileId, tile);
 
       return tile;
     }
 
-    // 3. Tile não encontrado
     _cacheMisses++;
-    
-    // Baixar tile (se online)
+
     return await _downloadTile(x, y, zoom);
   }
 
-  /// Baixar tile do servidor
   Future<MapTile?> _downloadTile(int x, int y, int zoom) async {
     try {
-      // URL do OpenStreetMap
-      final url = 'https://tile.openstreetmap.org/$zoom/$x/$y.png';
+      
+      final url = 'https:
       
       final client = HttpClient();
       final request = await client.getUrl(Uri.parse(url));
@@ -130,8 +111,7 @@ class OfflineMaps {
         final bytes = await consolidateHttpClientResponseBytes(response);
         
         final tile = MapTile(x: x, y: y, zoom: zoom, data: bytes);
-        
-        // Salvar no cache
+
         await _saveTile(tile);
         
         DebugUtils.log('Downloaded tile: $zoom/$x/$y', tag: 'MAPS');
@@ -145,12 +125,10 @@ class OfflineMaps {
     return null;
   }
 
-  /// Salvar tile no cache
   Future<void> _saveTile(MapTile tile) async {
     final tileId = _getTileId(tile.x, tile.y, tile.zoom);
     final now = DateTime.now().millisecondsSinceEpoch;
 
-    // Verificar se precisa limpar cache
     if (_currentCacheSize + tile.data.length > maxCacheSize) {
       await _evictOldTiles();
     }
@@ -174,7 +152,6 @@ class OfflineMaps {
     _addToMemoryCache(tileId, tile);
   }
 
-  /// Pre-carregar área (para uso offline)
   Future<void> preloadArea({
     required double centerLat,
     required double centerLon,
@@ -189,13 +166,11 @@ class OfflineMaps {
       tag: 'MAPS',
     );
 
-    // Calcular tiles ao redor do centro
     for (int dx = -radiusTiles; dx <= radiusTiles; dx++) {
       for (int dy = -radiusTiles; dy <= radiusTiles; dy++) {
         final x = centerTile.x + dx;
         final y = centerTile.y + dy;
 
-        // Verificar se já está em cache
         final tileId = _getTileId(x, y, zoom);
         final exists = await _tileExists(tileId);
 
@@ -205,7 +180,6 @@ class OfflineMaps {
             tilesToLoad.add(tile);
           }
 
-          // Delay para não sobrecarregar servidor
           await Future.delayed(const Duration(milliseconds: 100));
         }
       }
@@ -214,7 +188,6 @@ class OfflineMaps {
     DebugUtils.log('Preloaded ${tilesToLoad.length} tiles', tag: 'MAPS');
   }
 
-  /// Pre-carregar rota (predictive loading)
   Future<void> preloadRoute({
     required List<LatLon> waypoints,
     required int zoom,
@@ -225,7 +198,6 @@ class OfflineMaps {
     for (final point in waypoints) {
       final tile = _latLonToTile(point.lat, point.lon, zoom);
 
-      // Tiles ao redor de cada ponto da rota
       for (int dx = -bufferTiles; dx <= bufferTiles; dx++) {
         for (int dy = -bufferTiles; dy <= bufferTiles; dy++) {
           final tileId = _getTileId(tile.x + dx, tile.y + dy, zoom);
@@ -236,14 +208,15 @@ class OfflineMaps {
 
     DebugUtils.log('Preloading route: ${tilesToLoad.length} tiles', tag: 'MAPS');
 
-    // Baixar tiles que faltam
     for (final tileId in tilesToLoad) {
       final exists = await _tileExists(tileId);
       if (!exists) {
         final parts = tileId.split('_');
-        final x = int.parse(parts[1]);
-        final y = int.parse(parts[2]);
-        final z = int.parse(parts[3]);
+        if (parts.length < 4) continue; // Skip invalid tileId
+        
+        final x = int.tryParse(parts[1]) ?? 0;
+        final y = int.tryParse(parts[2]) ?? 0;
+        final z = int.tryParse(parts[3]) ?? 0;
 
         await _downloadTile(x, y, z);
         await Future.delayed(const Duration(milliseconds: 100));
@@ -251,22 +224,20 @@ class OfflineMaps {
     }
   }
 
-  /// Atualizar acesso ao tile (para LRU)
   Future<void> _updateTileAccess(String tileId) async {
     await _db!.update(
       'tiles',
       {
         'last_accessed': DateTime.now().millisecondsSinceEpoch,
-        'access_count': 1, // Incrementado via SQL trigger seria melhor
+        'access_count': 1, 
       },
       where: 'id = ?',
       whereArgs: [tileId],
     );
   }
 
-  /// Remover tiles antigos (LRU eviction)
   Future<void> _evictOldTiles() async {
-    // Remover 20% dos tiles menos usados
+    
     final toRemove = (maxCacheSize * 0.2).toInt();
 
     final tiles = await _db!.query(
@@ -291,13 +262,12 @@ class OfflineMaps {
     DebugUtils.log('Evicted ${_formatSize(removed)} from cache', tag: 'MAPS');
   }
 
-  /// Adicionar ao cache de memória
   void _addToMemoryCache(String tileId, MapTile tile) {
-    // Verificar limite de memória
+    
     int memorySize = _memoryCache.values.fold(0, (sum, t) => sum + t.data.length);
 
     if (memorySize + tile.data.length > maxMemoryCacheSize) {
-      // Remover tiles mais antigos da memória
+      
       final sorted = _memoryCache.entries.toList()
         ..sort((a, b) => a.value.accessTime.compareTo(b.value.accessTime));
 
@@ -314,7 +284,6 @@ class OfflineMaps {
     _memoryCache[tileId] = tile;
   }
 
-  /// Converter lat/lon para tile coordinates
   TileCoordinate _latLonToTile(double lat, double lon, int zoom) {
     final n = 1 << zoom;
     final x = ((lon + 180.0) / 360.0 * n).floor();
@@ -342,7 +311,6 @@ class OfflineMaps {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
-  /// Estatísticas do cache
   Map<String, dynamic> getStatistics() {
     final hitRate = _cacheHits + _cacheMisses > 0
         ? (_cacheHits / (_cacheHits + _cacheMisses) * 100)
@@ -357,7 +325,6 @@ class OfflineMaps {
     };
   }
 
-  /// Limpar todo o cache
   Future<void> clearCache() async {
     await _db!.delete('tiles');
     _memoryCache.clear();
@@ -403,13 +370,11 @@ class LatLon {
   LatLon(this.lat, this.lon);
 }
 
-/// Map Renderer - Renderiza tiles offline
 class OfflineMapRenderer {
   final OfflineMaps _maps;
 
   OfflineMapRenderer(this._maps);
 
-  /// Renderizar viewport do mapa
   Future<List<MapTile>> renderViewport({
     required double centerLat,
     required double centerLon,
@@ -418,14 +383,12 @@ class OfflineMapRenderer {
     required int viewportHeight,
   }) async {
     final tiles = <MapTile>[];
-    
-    // Calcular quantos tiles cabem no viewport
+
     final tilesX = (viewportWidth / OfflineMaps.tileSize).ceil() + 1;
     final tilesY = (viewportHeight / OfflineMaps.tileSize).ceil() + 1;
 
     final centerTile = _maps._latLonToTile(centerLat, centerLon, zoom);
 
-    // Carregar tiles necessários
     for (int dx = -tilesX ~/ 2; dx <= tilesX ~/ 2; dx++) {
       for (int dy = -tilesY ~/ 2; dy <= tilesY ~/ 2; dy++) {
         final tile = await _maps.getTile(
