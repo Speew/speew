@@ -89,7 +89,7 @@ class SettingsScreen extends StatelessWidget {
               await NotificationService.requestPermissions();
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Verifique as permissões nas configurações'),
+                  content: const Text('Verifique as permissões nas configurações'),
                 ),
               );
             },
@@ -113,8 +113,8 @@ class SettingsScreen extends StatelessWidget {
           const _SectionHeader(title: 'Sobre'),
           
           const ListTile(
-            title: Text('Versão'),
-            subtitle: Text('1.2.0'),
+            title: const Text('Versão'),
+            subtitle: const Text('1.2.0'),
           ),
 
           ListTile(
@@ -127,8 +127,8 @@ class SettingsScreen extends StatelessWidget {
           ),
 
           const ListTile(
-            title: Text('Desenvolvido com ❤️'),
-            subtitle: Text('Speew MVP - Open Source'),
+            title: const Text('Desenvolvido com ❤️'),
+            subtitle: const Text('Speew MVP - Open Source'),
           ),
         ],
       ),
@@ -145,7 +145,7 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Text(
+      child: const Text(
         title,
         style: TextStyle(
           fontSize: 14,

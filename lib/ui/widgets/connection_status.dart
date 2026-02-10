@@ -47,7 +47,7 @@ class ConnectionStatusBar extends StatelessWidget {
             ),
           const SizedBox(width: AppTheme.paddingMedium),
           Expanded(
-            child: Text(
+            child: const Text(
               statusMessage!,
               style: const TextStyle(
                 fontSize: AppTheme.fontSizeSmall,
@@ -86,7 +86,7 @@ class ConnectionStatusIndicator extends StatelessWidget {
         ),
         if (statusText != null) ...[
           const SizedBox(width: 6),
-          Text(
+          const Text(
             statusText!,
             style: TextStyle(
               fontSize: AppTheme.fontSizeSmall,

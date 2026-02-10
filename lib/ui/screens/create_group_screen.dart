@@ -46,7 +46,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                   decoration: const InputDecoration(
                     labelText: 'Nome do Grupo',
                     hintText: 'Ex: Família, Amigos...',
-                    prefixIcon: Icon(Icons.group),
+                    prefixIcon: const Icon(Icons.group),
                   ),
                   textCapitalization: TextCapitalization.words,
                 ),
@@ -62,7 +62,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                         (p) => p.id == peerId,
                       );
                       return Chip(
-                        label: Text(peer.name),
+                        label: const Text(peer.name),
                         onDeleted: () {
                           setState(() {
                             _selectedPeerIds.remove(peerId);
@@ -78,7 +78,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
               Expanded(
                 child: connectedPeers.isEmpty
                     ? const Center(
-                        child: Text('Nenhum contato conectado'),
+                        child: const Text('Nenhum contato conectado'),
                       )
                     : ListView.builder(
                         itemCount: connectedPeers.length,
@@ -87,7 +87,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                           final isSelected = _selectedPeerIds.contains(peer.id);
 
                           return CheckboxListTile(
-                            title: Text(peer.name),
+                            title: const Text(peer.name),
                             subtitle: const Text('Conectado'),
                             value: isSelected,
                             onChanged: (value) {
@@ -100,7 +100,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                               });
                             },
                             secondary: CircleAvatar(
-                              child: Text(peer.name[0].toUpperCase()),
+                              child: const Text(peer.name[0].toUpperCase()),
                             ),
                           );
                         },
@@ -118,7 +118,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
 
     if (groupName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Digite um nome para o grupo')),
+        const SnackBar(content: const Text('Digite um nome para o grupo')),
       );
       return;
     }
@@ -126,7 +126,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     if (_selectedPeerIds.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Selecione pelo menos 2 pessoas'),
+          content: const Text('Selecione pelo menos 2 pessoas'),
         ),
       );
       return;
@@ -141,7 +141,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     Navigator.pop(context);
     
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Grupo "$groupName" criado!')),
+      SnackBar(content: const Text('Grupo "$groupName" criado!')),
     );
   }
 }

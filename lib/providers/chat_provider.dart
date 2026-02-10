@@ -198,7 +198,7 @@ class ChatProvider with ChangeNotifier {
   }
   
   // Recebimento de mensagens
-  void _handleIncomingMessage(Map<String, dynamic> data) async {
+  Future<void> _handleIncomingMessage(Map<String, dynamic> data) async {
     try {
       final senderId = data['senderId'] as String;
       final encryptedContent = data['content'] as String;

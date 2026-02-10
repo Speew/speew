@@ -30,7 +30,7 @@ class Defensive {
     if (value == null) return defaultValue;
     
     // Remove caracteres perigosos
-    var sanitized = value
+    final sanitized = value
         .replaceAll(RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]'), '')
         .replaceAll(RegExp(r'<script[^>]*>.*?</script>', caseSensitive: false), '')
         .trim();
@@ -286,8 +286,8 @@ class Defensive {
       return operation();
     } catch (e, stack) {
       if (kDebugMode) {
-        print('❌ Safe operation failed${operationName != null ? " ($operationName)" : ""}: $e');
-        print(stack);
+        debugPrint('❌ Safe operation failed${operationName != null ? " ($operationName)" : ""}: $e');
+        debugPrint(stack);
       }
       return null;
     }
@@ -302,8 +302,8 @@ class Defensive {
       return await operation().timeout(timeout);
     } catch (e, stack) {
       if (kDebugMode) {
-        print('❌ Async safe operation failed${operationName != null ? " ($operationName)" : ""}: $e');
-        print(stack);
+        debugPrint('❌ Async safe operation failed${operationName != null ? " ($operationName)" : ""}: $e');
+        debugPrint(stack);
       }
       return null;
     }
@@ -318,7 +318,7 @@ class Defensive {
       return primary();
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ Primary operation failed, using fallback: $e');
+        debugPrint('⚠️ Primary operation failed, using fallback: $e');
       }
       return fallback();
     }
@@ -332,7 +332,7 @@ class Defensive {
     Duration delay = const Duration(seconds: 1),
     bool Function(dynamic error)? shouldRetry,
   }) async {
-    var attempt = 0;
+    final attempt = 0;
     
     while (true) {
       attempt++;
@@ -349,7 +349,7 @@ class Defensive {
         }
         
         if (kDebugMode) {
-          print('⚠️ Attempt $attempt failed, retrying in ${delay.inSeconds}s...');
+          debugPrint('⚠️ Attempt $attempt failed, retrying in ${delay.inSeconds}s...');
         }
         
         await Future.delayed(delay * attempt);
@@ -441,7 +441,7 @@ class _CircuitBreakerState {
 
   void halfOpen() {
     if (kDebugMode) {
-      print('⚡ Circuit breaker entering HALF-OPEN state');
+      debugPrint('⚡ Circuit breaker entering HALF-OPEN state');
     }
   }
 
@@ -458,7 +458,7 @@ class _CircuitBreakerState {
     if (failureCount >= failureThreshold) {
       isOpen = true;
       if (kDebugMode) {
-        print('🔴 Circuit breaker OPENED after $failureCount failures');
+        debugPrint('🔴 Circuit breaker OPENED after $failureCount failures');
       }
     }
   }

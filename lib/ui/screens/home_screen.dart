@@ -52,7 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text('Speew'),
-                Text(
+                const Text(
                   provider.myName ?? 'Loading...',
                   style: const TextStyle(fontSize: 12),
                 ),
@@ -64,7 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Consumer<ChatProvider>(
             builder: (context, provider, child) {
               return IconButton(
-                icon: Icon(
+                icon: const Icon(
                   provider.isDiscovering ? Icons.search_off : Icons.search,
                   color: provider.isDiscovering ? Colors.green : null,
                 ),
@@ -92,17 +92,17 @@ class _HomeScreenState extends State<HomeScreen> {
           final peers = provider.peers;
 
           if (peers.isEmpty) {
-            return Center(
+            return const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
+                  const Icon(
                     provider.isDiscovering ? Icons.search : Icons.people_outline,
                     size: 64,
                     color: Colors.grey,
                   ),
                   const SizedBox(height: 16),
-                  Text(
+                  const Text(
                     provider.isDiscovering ? 'Searching for peers...' : 'No peers found',
                     style: const TextStyle(fontSize: 18, color: Colors.grey),
                   ),
@@ -129,13 +129,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 key: ValueKey(peer.id),
                 leading: CircleAvatar(
                   backgroundColor: peer.isConnected ? Colors.green : Colors.grey,
-                  child: Text(
+                  child: const Text(
                     peer.name[0].toUpperCase(),
                     style: const TextStyle(color: Colors.white),
                   ),
                 ),
-                title: Text(peer.name),
-                subtitle: Text(
+                title: const Text(peer.name),
+                subtitle: const Text(
                   lastMessage?.content ?? (peer.isConnected ? 'Connected' : 'Tap to connect'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -143,7 +143,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 trailing: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.circle,
                       size: 12,
                       color: peer.isConnected ? Colors.green : Colors.grey,
@@ -156,7 +156,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: Colors.red,
                           shape: BoxShape.circle,
                         ),
-                        child: Text(
+                        child: const Text(
                           messages.length.toString(),
                           style: const TextStyle(color: Colors.white, fontSize: 10),
                         ),
@@ -170,7 +170,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (!connected) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Failed to connect')),
+                          const SnackBar(content: const Text('Failed to connect')),
                         );
                       }
                       return;
@@ -196,7 +196,7 @@ class _HomeScreenState extends State<HomeScreen> {
           return FloatingActionButton(
             onPressed: _toggleDiscovery,
             tooltip: 'Toggle Discovery',
-            child: Icon(
+            child: const Icon(
               provider.isDiscovering ? Icons.stop : Icons.play_arrow,
             ),
           );

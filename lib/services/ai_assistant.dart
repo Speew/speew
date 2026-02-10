@@ -204,7 +204,7 @@ class AIAssistant {
       'flw': 'falou',
     };
     
-    var corrected = text;
+    final corrected = text;
     corrections.forEach((wrong, right) {
       corrected = corrected.replaceAll(
         RegExp('\\b$wrong\\b', caseSensitive: false),

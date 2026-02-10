@@ -14,7 +14,7 @@ import 'providers/connection_provider.dart';
 import 'providers/settings_provider.dart';
 import 'ui/screens/splash_screen.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Configure system UI

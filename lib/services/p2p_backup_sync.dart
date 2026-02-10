@@ -152,7 +152,7 @@ class P2PBackupSync {
       
       if (fileData != null) {
         
-        var data = fileData;
+        final data = fileData;
         if (metadata.encrypted) {
           data = await _decryptData(data);
         }
@@ -190,7 +190,7 @@ class P2PBackupSync {
 
       for (final filePath in files) {
         final file = File(filePath);
-        var data = await file.readAsBytes();
+        final data = await file.readAsBytes();
 
         if (encrypt) {
           data = await _encryptData(data);

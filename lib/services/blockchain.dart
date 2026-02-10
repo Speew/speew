@@ -5,7 +5,7 @@ import '../core/utils.dart';
 
 class MessageBlockchain {
   final List<Block> _chain = [];
-  final int _difficulty = 2; 
+  final _difficulty = ; 
 
   List<Block> get chain => List.unmodifiable(_chain);
   int get length => _chain.length;

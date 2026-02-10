@@ -118,7 +118,7 @@ class TypingIndicatorBubble extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
+            const Text(
               '$userName está digitando',
               style: TextStyle(
                 color: Colors.grey[600],

@@ -257,7 +257,7 @@ class E2EEncryptionService {
     }
   }
 
-  Future<String> getFingerprint(String peerId) async {
+  Future<String> getFingerdebugPrint(String peerId) async {
     final session = _sessions[peerId];
     if (session?.peerIdentityKey == null) {
       return 'No session';

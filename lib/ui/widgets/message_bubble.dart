@@ -59,7 +59,7 @@ class MessageBubble extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               
-              Text(
+              const Text(
                 message.content,
                 style: TextStyle(
                   color: isMe
@@ -74,7 +74,7 @@ class MessageBubble extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
+                  const Text(
                     DateTimeUtils.formatChatTime(message.timestamp),
                     style: TextStyle(
                       fontSize: AppTheme.fontSizeSmall,
@@ -108,7 +108,7 @@ class MessageBubble extends StatelessWidget {
       color = Colors.white54;
     }
 
-    return Icon(
+    return const Icon(
       icon,
       size: 14,
       color: color,

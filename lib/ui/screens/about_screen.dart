@@ -15,13 +15,13 @@ class AboutScreen extends StatelessWidget {
         children: [
           const Icon(Icons.security, size: 100),
           const SizedBox(height: 24),
-          Text(
+          const Text(
             AppConfig.appName,
             style: Theme.of(context).textTheme.displaySmall,
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
-          Text(
+          const Text(
             'Version ${AppConfig.appVersion}',
             style: Theme.of(context).textTheme.bodyMedium,
             textAlign: TextAlign.center,

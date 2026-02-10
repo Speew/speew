@@ -298,19 +298,19 @@ class DebugUtils {
     if (AppConfig.enableDebugLogs) {
       final timestamp = DateTime.now().toIso8601String();
       final prefix = tag != null ? '[$tag]' : '[DEBUG]';
-      print('$timestamp $prefix $message');
+      debugPrint('$timestamp $prefix $message');
     }
   }
 
   static void logError(String message, {Object? error, StackTrace? stackTrace}) {
     if (AppConfig.enableDebugLogs) {
       final timestamp = DateTime.now().toIso8601String();
-      print('$timestamp [ERROR] $message');
+      debugPrint('$timestamp [ERROR] $message');
       if (error != null) {
-        print('Error: $error');
+        debugPrint('Error: $error');
       }
       if (stackTrace != null) {
-        print('StackTrace: $stackTrace');
+        debugPrint('StackTrace: $stackTrace');
       }
     }
   }

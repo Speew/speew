@@ -22,7 +22,7 @@ class PeerAvatar extends StatelessWidget {
         CircleAvatar(
           radius: size / 2,
           backgroundColor: ColorUtils.getAvatarColor(name),
-          child: Text(
+          child: const Text(
             TextUtils.getInitials(name),
             style: TextStyle(
               color: Colors.white,

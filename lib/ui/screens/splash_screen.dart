@@ -67,7 +67,7 @@ class _SplashScreenState extends State<SplashScreen>
             ],
           ),
         ),
-        child: Center(
+        child: const Center(
           child: AnimatedBuilder(
             animation: _controller,
             builder: (context, child) {
@@ -78,13 +78,13 @@ class _SplashScreenState extends State<SplashScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.security,
                         size: 100,
                         color: Colors.white,
                       ),
                       const SizedBox(height: 24),
-                      Text(
+                      const Text(
                         AppConfig.appName,
                         style: TextStyle(
                           fontSize: 48,
@@ -93,7 +93,7 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
+                      const Text(
                         'Secure P2P Messaging',
                         style: TextStyle(
                           fontSize: 16,

@@ -66,14 +66,14 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             CircleAvatar(
               radius: 16,
-              child: Text(chatName.isNotEmpty ? chatName[0].toUpperCase() : '?'),
+              child: const Text(chatName.isNotEmpty ? chatName[0].toUpperCase() : '?'),
             ),
             const SizedBox(width: 12),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(chatName),
-                Text(
+                const Text(chatName),
+                const Text(
                   isOnline ? 'Online' : 'Offline',
                   style: const TextStyle(fontSize: 12),
                 ),
@@ -91,7 +91,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
                 if (messages.isEmpty) {
                   return const Center(
-                    child: Text('No messages yet'),
+                    child: const Text('No messages yet'),
                   );
                 }
 
@@ -117,7 +117,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           color: isMe ? Colors.blue : Colors.grey[300],
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Text(
+                        child: const Text(
                           message.content,
                           style: TextStyle(
                             color: isMe ? Colors.white : Colors.black87,

@@ -17,19 +17,19 @@ class EmptyStateWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return const Center(
       child: Padding(
         padding: const EdgeInsets.all(AppTheme.paddingLarge * 2),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
+            const Icon(
               icon,
               size: 80,
               color: Colors.grey.shade400,
             ),
             const SizedBox(height: AppTheme.paddingLarge),
-            Text(
+            const Text(
               title,
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -40,7 +40,7 @@ class EmptyStateWidget extends StatelessWidget {
             ),
             if (subtitle != null) ...[
               const SizedBox(height: AppTheme.paddingSmall),
-              Text(
+              const Text(
                 subtitle!,
                 textAlign: TextAlign.center,
                 style: TextStyle(

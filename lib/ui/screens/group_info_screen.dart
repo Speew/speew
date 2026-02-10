@@ -20,18 +20,18 @@ class GroupInfoScreen extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 50,
-                  child: Text(
+                  child: const Text(
                     group.name[0].toUpperCase(),
                     style: const TextStyle(fontSize: 40),
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text(
+                const Text(
                   group.name,
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
                 const SizedBox(height: 8),
-                Text('${group.memberIds.length} members'),
+                const Text('${group.memberIds.length} members'),
               ],
             ),
           ),
@@ -39,7 +39,7 @@ class GroupInfoScreen extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.people),
             title: const Text('Members'),
-            subtitle: Text('${group.memberIds.length} members'),
+            subtitle: const Text('${group.memberIds.length} members'),
           ),
         ],
       ),

@@ -333,7 +333,7 @@ class StreamOptimizer {
     // Cancelar subscription anterior
     _subscriptions[id]?.cancel();
 
-    var subscription = stream.listen(onData);
+    final subscription = stream.listen(onData);
 
     // Auto-cancel após timeout
     if (timeout != null) {

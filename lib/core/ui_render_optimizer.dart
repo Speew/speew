@@ -336,7 +336,7 @@ class _LazyImageState extends State<LazyImage> {
 /// Visibility Detector - Detecta quando widget está visível
 class VisibilityDetector extends StatefulWidget {
   final Widget child;
-  final Function(VisibilityInfo) onVisibilityChanged;
+  final void Function(VisibilityInfo) onVisibilityChanged;
 
   const VisibilityDetector({
     Key? key,

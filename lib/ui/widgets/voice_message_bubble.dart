@@ -43,7 +43,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
         children: [
           
           IconButton(
-            icon: Icon(
+            icon: const Icon(
               _isPlaying ? Icons.pause : Icons.play_arrow,
               color: widget.isMe ? Colors.white : Colors.black87,
             ),
@@ -68,7 +68,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
           
           const SizedBox(width: 8),
 
-          Text(
+          const Text(
             widget.voiceMessage.formattedDuration,
             style: TextStyle(
               color: widget.isMe ? Colors.white70 : Colors.black54,
@@ -119,7 +119,7 @@ class WaveformPainter extends CustomPainter {
 }
 
 class VoiceRecorderButton extends StatefulWidget {
-  final Function(VoiceMessage) onVoiceMessageRecorded;
+  final void Function(VoiceMessage) onVoiceMessageRecorded;
 
   const VoiceRecorderButton({
     super.key,
@@ -154,7 +154,7 @@ class _VoiceRecorderButtonState extends State<VoiceRecorderButton> {
     super.dispose();
   }
 
-  void _startRecording() async {
+  Future<void> _startRecording() async {
     final started = await _service.startRecording();
     if (started && mounted) {
       setState(() {
@@ -163,7 +163,7 @@ class _VoiceRecorderButtonState extends State<VoiceRecorderButton> {
     }
   }
 
-  void _stopRecording() async {
+  Future<void> _stopRecording() async {
     final voiceMessage = await _service.stopRecording();
     
     if (mounted) {
@@ -216,7 +216,7 @@ class _VoiceRecorderButtonState extends State<VoiceRecorderButton> {
             
             const SizedBox(width: 8),
 
-            Text(
+            const Text(
               '${_duration.inMinutes.toString().padLeft(2, '0')}:${(_duration.inSeconds % 60).toString().padLeft(2, '0')}',
               style: const TextStyle(
                 fontWeight: FontWeight.bold,

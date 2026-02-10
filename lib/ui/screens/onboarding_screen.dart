@@ -13,15 +13,15 @@ class OnboardingScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.lock_outline, size: 100, color: Theme.of(context).colorScheme.primary),
+              const Icon(Icons.lock_outline, size: 100, color: Theme.of(context).colorScheme.primary),
               const SizedBox(height: 32),
-              Text(
+              const Text(
                 'Welcome to Speew',
                 style: Theme.of(context).textTheme.displaySmall,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-              Text(
+              const Text(
                 'Secure, private, peer-to-peer messaging without servers',
                 style: Theme.of(context).textTheme.bodyLarge,
                 textAlign: TextAlign.center,

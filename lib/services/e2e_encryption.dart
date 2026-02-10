@@ -319,7 +319,7 @@ class E2EEncryption {
     DebugUtils.log('Keys rotated successfully', tag: 'E2E');
   }
 
-  Future<String> getPublicKeyFingerprint() async {
+  Future<String> getPublicKeyFingerdebugPrint() async {
     final publicKeyBytes = await getPublicKey();
     final hash = await _sha256.hash(publicKeyBytes);
     
@@ -330,7 +330,7 @@ class E2EEncryption {
         .toUpperCase();
   }
 
-  Future<String> getRemoteKeyFingerprint() async {
+  Future<String> getRemoteKeyFingerdebugPrint() async {
     if (_remotePublicKey == null) {
       throw Exception('Remote public key not set');
     }

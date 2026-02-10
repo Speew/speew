@@ -280,7 +280,7 @@ class EnhancedTypingBubble extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Flexible(
-              child: Text(
+              child: const Text(
                 _getTypingText(),
                 style: TextStyle(
                   color: textColor ?? (isDark ? Colors.grey[300] : Colors.grey[700]),
@@ -328,7 +328,7 @@ class CompactTypingIndicator extends StatelessWidget {
           color: Colors.grey,
         ),
         const SizedBox(width: 4),
-        Text(
+        const Text(
           'digitando...',
           style: TextStyle(
             fontSize: 12,

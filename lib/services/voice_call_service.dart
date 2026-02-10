@@ -198,11 +198,11 @@ class VoiceCallService {
   void _analyzeStats(List<StatsReport> stats) {
     for (final report in stats) {
       if (report.type == 'inbound-rtp' && report.values['kind'] == 'audio') {
-        final packetsLost = report.values['packetsLost'] ?? 0;
-        final packetsReceived = report.values['packetsReceived'] ?? 0;
-        final jitter = report.values['jitter'] ?? 0.0;
+        final int packetsLost = (report.values['packetsLost'] as num?)?.toInt() ?? 0;
+        final int packetsReceived = (report.values['packetsReceived'] as num?)?.toInt() ?? 0;
+        final double jitter = (report.values['jitter'] as num?)?.toDouble() ?? 0.0;
 
-        final lossRate = packetsReceived > 0
+        final double lossRate = packetsReceived > 0
             ? (packetsLost / packetsReceived) * 100
             : 0.0;
 

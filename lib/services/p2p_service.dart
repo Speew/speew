@@ -261,7 +261,7 @@ class P2PService {
     _updatePeersList();
   }
 
-  void _onPayloadReceived(String endpointId, Payload payload) async {
+  Future<void> _onPayloadReceived(String endpointId, Payload payload) async {
     if (payload.type == PayloadType.BYTES && payload.bytes != null) {
       final content = String.fromCharCodes(payload.bytes!);
 

@@ -26,25 +26,25 @@ class MeshStatisticsScreen extends StatelessWidget {
   }
 
   Widget _buildMeshDisabled() {
-    return Center(
+    return const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: const [
-          Icon(
+          const Icon(
             Icons.info_outline,
             size: 64,
             color: Colors.grey,
           ),
-          SizedBox(height: 16),
-          Text(
+          const SizedBox(height: 16),
+          const Text(
             'Mesh Multi-hop não está ativado',
             style: TextStyle(
               fontSize: 16,
               color: Colors.grey,
             ),
           ),
-          SizedBox(height: 8),
-          Text(
+          const SizedBox(height: 8),
+          const Text(
             'Ative nas configurações iniciais',
             style: TextStyle(
               fontSize: 12,
@@ -95,7 +95,7 @@ class MeshStatisticsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               title,
               style: const TextStyle(
                 fontSize: AppTheme.fontSizeLarge,
@@ -116,14 +116,14 @@ class MeshStatisticsScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
+          const Text(
             label,
             style: const TextStyle(
               fontSize: AppTheme.fontSizeMedium,
               color: Colors.grey,
             ),
           ),
-          Text(
+          const Text(
             value,
             style: const TextStyle(
               fontSize: AppTheme.fontSizeMedium,
@@ -153,8 +153,8 @@ class MeshStatisticsScreen extends StatelessWidget {
             if (routes.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(16),
-                child: Center(
-                  child: Text(
+                child: const Center(
+                  child: const Text(
                     'Nenhuma rota conhecida',
                     style: TextStyle(color: Colors.grey),
                   ),
@@ -186,7 +186,7 @@ class MeshStatisticsScreen extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
+            child: const Text(
               route,
               style: const TextStyle(
                 fontSize: AppTheme.fontSizeSmall,
@@ -246,13 +246,13 @@ class MeshStatisticsScreen extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 24, color: Colors.blue),
+          const Icon(icon, size: 24, color: Colors.blue),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   title,
                   style: const TextStyle(
                     fontSize: AppTheme.fontSizeMedium,
@@ -260,7 +260,7 @@ class MeshStatisticsScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
+                const Text(
                   description,
                   style: const TextStyle(
                     fontSize: AppTheme.fontSizeSmall,

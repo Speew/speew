@@ -43,13 +43,13 @@ mixin TypingHelperMixin {
 /// Drop-in replacement for TextField with automatic typing detection
 class TypingTextField extends StatefulWidget {
   final String peerId;
-  final Function(String) onChanged;
-  final Function()? onSendTyping;
+  final void Function(String) onChanged;
+  final void Function()? onSendTyping;
   final TextEditingController? controller;
   final InputDecoration? decoration;
   final int? maxLines;
   final TextInputAction? textInputAction;
-  final Function(String)? onSubmitted;
+  final void Function(String)? onSubmitted;
 
   const TypingTextField({
     super.key,

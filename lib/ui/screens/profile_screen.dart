@@ -16,10 +16,10 @@ class ProfileScreen extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Center(
+              const Center(
                 child: CircleAvatar(
                   radius: 60,
-                  child: Text(
+                  child: const Text(
                     settings.userName.isNotEmpty
                         ? settings.userName[0].toUpperCase()
                         : 'U',
