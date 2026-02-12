@@ -1,7 +1,7 @@
 name: speew
-description: Speew - Secure P2P Messaging App (v2.0)
+description: P2P Offline Messaging App - Refactored MVP
 publish_to: 'none'
-version: 2.0.0+200
+version: 2.0.0+1
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -9,79 +9,29 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
+  
   # State Management
-  provider: ^6.1.2
-  get_it: ^7.6.7
+  provider: ^6.1.1
   
-  # Networking
-  nearby_connections: ^4.0.0
-  connectivity_plus: ^6.0.5
+  # Local Storage
+  sqflite: ^2.3.0
+  path_provider: ^2.1.1
+  path: ^1.8.3
   
-  # Storage
-  sqflite: ^2.3.3
-  hive: ^2.2.3
-  hive_flutter: ^1.1.0
-  path_provider: ^2.1.2
-  shared_preferences: ^2.2.2
+  # P2P Communication
+  nearby_connections: ^5.0.3
   
   # Security
-  cryptography: ^2.7.0
-  crypto: ^3.0.5
-  
-  # UI & Icons
-  cupertino_icons: ^1.0.6
-  flutter_svg: ^2.0.10
-  
-  # Media
-  image_picker: ^1.0.7
-  image: ^4.1.7
+  cryptography: ^2.5.0
   
   # Utils
-  path: ^1.9.0
-  uuid: ^4.3.3
+  uuid: ^4.2.1
   intl: ^0.19.0
-  permission_handler: ^11.3.0
-  collection: ^1.18.0
-  
-  # Notifications
-  flutter_local_notifications: ^17.0.0
-  
-  # Device & Platform
-  battery_plus: ^5.0.0
-  device_info_plus: ^9.1.0
-  
-  # WebRTC for Voice/Video
-  flutter_webrtc: ^0.9.46
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
-  flutter_launcher_icons: ^0.13.1
-
-flutter_launcher_icons:
-  android: true
-  ios: true
-  image_path: "assets/icons/app_icon.png"
-  adaptive_icon_background: "#2196F3"
-  adaptive_icon_foreground: "assets/icons/app_icon_foreground.png"
-  remove_alpha_ios: true
 
 flutter:
   uses-material-design: true
-  
-  assets:
-    - assets/images/
-    - assets/icons/
-  
-  fonts:
-    - family: Poppins
-      fonts:
-        - asset: assets/fonts/Poppins-Regular.ttf
-        - asset: assets/fonts/Poppins-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/Poppins-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/Poppins-Bold.ttf
-          weight: 700

@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/peer.dart';
-import '../../models/group.dart';
 import '../../models/message.dart';
 import '../../providers/chat_provider.dart';
-import 'package:uuid/uuid.dart';
 
 class ChatScreen extends StatefulWidget {
-  final Peer? peer;
-  final Group? group;
+  final Peer peer;
 
-  const ChatScreen({super.key, this.peer, this.group})
-      : assert(peer != null || group != null, 'Either peer or group must be provided');
+  const ChatScreen({super.key, required this.peer});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -20,42 +16,50 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  List<Message> _messages = [];
 
-  String get chatName => widget.peer?.name ?? widget.group?.name ?? 'Chat';
-  String get chatId => widget.peer?.id ?? widget.group?.id ?? '';
-  bool get isOnline => widget.peer?.isConnected ?? false;
+  @override
+  void initState() {
+    super.initState();
+    _loadMessages();
+  }
+
+  Future<void> _loadMessages() async {
+    final messages = await context.read<ChatProvider>().getMessages(widget.peer.id);
+    setState(() {
+      _messages = messages;
+    });
+    _scrollToBottom();
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      Future.delayed(const Duration(milliseconds: 100), () {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      });
+    }
+  }
+
+  Future<void> _sendMessage() async {
+    if (_controller.text.trim().isEmpty) return;
+
+    final content = _controller.text.trim();
+    _controller.clear();
+
+    await context.read<ChatProvider>().sendMessage(content, widget.peer);
+    
+    await _loadMessages();
+  }
 
   @override
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  void _sendMessage() {
-    if (_controller.text.trim().isEmpty) return;
-
-    final provider = context.read<ChatProvider>();
-    final message = Message(
-      id: const Uuid().v4(),
-      senderId: 'me',
-      receiverId: chatId,
-      content: _controller.text.trim(),
-      timestamp: DateTime.now(),
-    );
-
-    provider.addMessage(message);
-    _controller.clear();
-
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
   }
 
   @override
@@ -66,17 +70,15 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             CircleAvatar(
               radius: 16,
-              child: const Text(chatName.isNotEmpty ? chatName[0].toUpperCase() : '?'),
+              backgroundColor: widget.peer.isConnected ? Colors.green : Colors.grey,
+              child: Text(widget.peer.name[0].toUpperCase(), style: const TextStyle(fontSize: 14, color: Colors.white)),
             ),
             const SizedBox(width: 12),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(chatName),
-                const Text(
-                  isOnline ? 'Online' : 'Offline',
-                  style: const TextStyle(fontSize: 12),
-                ),
+                Text(widget.peer.name, style: const TextStyle(fontSize: 16)),
+                Text(widget.peer.isConnected ? 'Online' : 'Offline', style: const TextStyle(fontSize: 12)),
               ],
             ),
           ],
@@ -85,62 +87,54 @@ class _ChatScreenState extends State<ChatScreen> {
       body: Column(
         children: [
           Expanded(
-            child: Consumer<ChatProvider>(
-              builder: (context, provider, child) {
-                final messages = provider.getMessages(chatId);
+            child: _messages.isEmpty
+                ? const Center(child: Text('No messages yet\nSend a message to start chatting!', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)))
+                : ListView.builder(
+                    controller: _scrollController,
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) {
+                      final message = _messages[index];
+                      final isMe = message.senderId == 'me';
 
-                if (messages.isEmpty) {
-                  return const Center(
-                    child: const Text('No messages yet'),
-                  );
-                }
-
-                return ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.all(16),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final message = messages[index];
-                    final isMe = message.senderId == 'me';
-
-                    return Align(
-                      key: ValueKey(message.id),
-                      alignment:
-                          isMe ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isMe ? Colors.blue : Colors.grey[300],
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Text(
-                          message.content,
-                          style: TextStyle(
-                            color: isMe ? Colors.white : Colors.black87,
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        child: Align(
+                          alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                          child: Container(
+                            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isMe ? Colors.blue : Colors.grey[300],
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(message.content, style: TextStyle(color: isMe ? Colors.white : Colors.black)),
+                                const SizedBox(height: 4),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(_formatTime(message.timestamp), style: TextStyle(fontSize: 10, color: isMe ? Colors.white70 : Colors.black54)),
+                                    if (isMe) ...[
+                                      const SizedBox(width: 4),
+                                      Icon(_getStatusIcon(message.status), size: 14, color: Colors.white70),
+                                    ],
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+                      );
+                    },
+                  ),
           ),
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Theme.of(context).scaffoldBackgroundColor,
-              boxShadow: [
-                BoxShadow(
-                  offset: const Offset(0, -2),
-                  blurRadius: 4,
-                  color: Colors.black.withOpacity(0.1),
-                ),
-              ],
+              color: Colors.white,
+              boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.2), spreadRadius: 1, blurRadius: 3)],
             ),
             child: Row(
               children: [
@@ -149,26 +143,32 @@ class _ChatScreenState extends State<ChatScreen> {
                     controller: _controller,
                     decoration: const InputDecoration(
                       hintText: 'Type a message...',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 16),
                     ),
                     onSubmitted: (_) => _sendMessage(),
                   ),
                 ),
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: _sendMessage,
-                  icon: const Icon(Icons.send),
-                  color: Colors.blue,
-                ),
+                IconButton(icon: const Icon(Icons.send, color: Colors.blue), onPressed: _sendMessage),
               ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _formatTime(DateTime dateTime) {
+    return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+  }
+
+  IconData _getStatusIcon(MessageStatus status) {
+    switch (status) {
+      case MessageStatus.sending: return Icons.schedule;
+      case MessageStatus.sent: return Icons.done;
+      case MessageStatus.delivered: return Icons.done_all;
+      case MessageStatus.read: return Icons.done_all;
+      case MessageStatus.failed: return Icons.error_outline;
+    }
   }
 }

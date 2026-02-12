@@ -1,354 +1,148 @@
 import 'dart:async';
-import 'dart:typed_data';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:nearby_connections/nearby_connections.dart';
+import '../models/message.dart';
 import '../models/peer.dart';
-import 'crypto_service.dart';
-import 'storage_service.dart';
 
 class P2PService {
-  final CryptoService _cryptoService;
-  final StorageService _storageService;
-
-  P2PService({
-    required CryptoService cryptoService,
-    required StorageService storageService,
-  })  : _cryptoService = cryptoService,
-        _storageService = storageService;
+  static final P2PService _instance = P2PService._internal();
+  factory P2PService() => _instance;
+  P2PService._internal();
 
   final Nearby _nearby = Nearby();
   final Strategy _strategy = Strategy.P2P_CLUSTER;
 
-  final _messageController = StreamController<Map<String, dynamic>>.broadcast();
-  final _typingController = StreamController<Map<String, dynamic>>.broadcast();
-  final _connectionStatusController = StreamController<ConnectionStatus>.broadcast();
-  final _peersController = StreamController<Map<String, dynamic>>.broadcast();
+  final _messageController = StreamController<Message>.broadcast();
+  final _peerController = StreamController<List<Peer>>.broadcast();
+
+  Stream<Message> get messageStream => _messageController.stream;
+  Stream<List<Peer>> get peerStream => _peerController.stream;
 
   final Map<String, Peer> _connectedPeers = {};
-  final Map<String, Peer> _nearbyPeers = {};
-  final Map<String, Timer> _heartbeats = {};
-  final Map<String, int> _retryCount = {};
+  String _myId = '';
+  String _myName = '';
 
-  String _currentUserId = '';
-  String _userName = '';
-  bool _isAdvertising = false;
-  bool _isDiscovering = false;
+  Future<void> initialize(String name) async {
+    _myId = DateTime.now().millisecondsSinceEpoch.toString();
+    _myName = name;
 
-  Stream<Map<String, dynamic>> get messageStream => _messageController.stream;
-  Stream<Map<String, dynamic>> get typingStream => _typingController.stream;
-  Stream<ConnectionStatus> get connectionStatusStream => _connectionStatusController.stream;
-  Stream<Map<String, dynamic>> get peersStream => _peersController.stream;
-
-  String get currentUserId => _currentUserId;
-  List<Peer> get connectedPeers => _connectedPeers.values.toList();
-  List<Peer> get nearbyPeers => _nearbyPeers.values.toList();
-
-  Future<void> initialize(String userId, String userName) async {
-    _currentUserId = userId;
-    _userName = userName;
     await _nearby.askLocationAndExternalStoragePermission();
-    await _cryptoService.initialize();
   }
 
-  Future<bool> startAdvertising() async {
-    if (_userName.isEmpty) return false;
-
+  Future<void> startAdvertising() async {
     try {
-      _isAdvertising = await _nearby.startAdvertising(
-        _userName,
+      await _nearby.startAdvertising(
+        _myName,
         _strategy,
         onConnectionInitiated: _onConnectionInitiated,
         onConnectionResult: _onConnectionResult,
         onDisconnected: _onDisconnected,
       );
-
-      if (_isAdvertising) {
-        _connectionStatusController.add(ConnectionStatus.connected);
-      }
-
-      return _isAdvertising;
     } catch (e) {
-      _connectionStatusController.add(ConnectionStatus.error);
-      return false;
+      debugPrint('Error starting advertising: $e');
     }
   }
 
-  Future<bool> startDiscovery() async {
-    if (_userName.isEmpty) return false;
-
+  Future<void> startDiscovery() async {
     try {
-      _isDiscovering = await _nearby.startDiscovery(
-        _userName,
+      await _nearby.startDiscovery(
+        _myName,
         _strategy,
         onEndpointFound: _onEndpointFound,
         onEndpointLost: _onEndpointLost,
       );
-
-      if (_isDiscovering) {
-        _connectionStatusController.add(ConnectionStatus.connected);
-      }
-
-      return _isDiscovering;
     } catch (e) {
-      _connectionStatusController.add(ConnectionStatus.error);
-      return false;
+      debugPrint('Error starting discovery: $e');
     }
   }
 
-  Future<void> stopAdvertising() async {
-    await _nearby.stopAdvertising();
-    _isAdvertising = false;
-  }
-
-  Future<void> stopDiscovery() async {
-    await _nearby.stopDiscovery();
-    _isDiscovering = false;
-  }
-
-  Future<bool> connectToPeer(String peerId) async {
-    final peer = _nearbyPeers[peerId];
-    if (peer == null) return false;
-
-    try {
-      final result = await _nearby.requestConnection(
-        _userName,
-        peerId,
-        onConnectionInitiated: _onConnectionInitiated,
-        onConnectionResult: _onConnectionResult,
-        onDisconnected: _onDisconnected,
-      );
-
-      return result;
-    } catch (e) {
-      _retryConnection(peerId);
-      return false;
-    }
-  }
-
-  Future<bool> acceptConnection(String peerId) async {
-    try {
-      final result = await _nearby.acceptConnection(
-        peerId,
-        onPayLoadRecieved: _onPayloadReceived,
-      );
-
-      if (result) {
-        await _exchangeKeys(peerId);
-        _startHeartbeat(peerId);
-      }
-
-      return result;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  Future<bool> rejectConnection(String peerId) async {
-    try {
-      return await _nearby.rejectConnection(peerId);
-    } catch (e) {
-      return false;
-    }
-  }
-
-  Future<bool> sendMessage({
-    required String peerId,
-    required String message,
-    bool isGroup = false,
-  }) async {
-    try {
-      final encrypted = await _cryptoService.encryptMessage(message, peerId);
-      await _nearby.sendBytesPayload(peerId, Uint8List.fromList(encrypted.codeUnits));
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  Future<bool> sendFile({
-    required String peerId,
-    required String filePath,
-  }) async {
-    try {
-      await _nearby.sendFilePayload(peerId, filePath);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  void sendTypingIndicator(String peerId, bool isTyping) {
-    final data = {'type': 'typing', 'isTyping': isTyping};
-    _nearby.sendBytesPayload(peerId, Uint8List.fromList(data.toString().codeUnits));
-  }
-
-  Future<void> disconnectFromPeer(String peerId) async {
-    await _nearby.disconnectFromEndpoint(peerId);
-    _heartbeats[peerId]?.cancel();
-    _heartbeats.remove(peerId);
-    _connectedPeers.remove(peerId);
-    _retryCount.remove(peerId);
-    _updatePeersList();
-  }
-
-  Future<void> refreshPeers() async {
-    for (final peer in _connectedPeers.values) {
-      if (peer.isConnected) {
-        final lastSeen = peer.lastSeen?.millisecondsSinceEpoch ?? 0;
-        final now = DateTime.now().millisecondsSinceEpoch;
-        if (now - lastSeen > 60000) {
-          peer.isConnected = false;
-          await _storageService.updatePeerStatus(peer.id, false);
-        }
-      }
-    }
-    _updatePeersList();
-  }
-
-  void _onEndpointFound(String endpointId, String name, String serviceId) {
-    final peer = Peer(
-      id: endpointId,
-      name: name,
-      isConnected: false,
-      lastSeen: DateTime.now(),
+  void _onEndpointFound(String endpointId, String endpointName, String serviceId) {
+    debugPrint('Found endpoint: $endpointName');
+    
+    _nearby.requestConnection(
+      _myName,
+      endpointId,
+      onConnectionInitiated: _onConnectionInitiated,
+      onConnectionResult: _onConnectionResult,
+      onDisconnected: _onDisconnected,
     );
-
-    _nearbyPeers[endpointId] = peer;
-    _updatePeersList();
   }
 
   void _onEndpointLost(String? endpointId) {
+    debugPrint('Lost endpoint: $endpointId');
     if (endpointId != null) {
-      _nearbyPeers.remove(endpointId);
-      _updatePeersList();
+      _connectedPeers.remove(endpointId);
+      _updatePeers();
     }
   }
 
   void _onConnectionInitiated(String endpointId, ConnectionInfo info) {
-    // Auto-accept connections for now
-    acceptConnection(endpointId);
+    debugPrint('Connection initiated with: ${info.endpointName}');
+    
+    _nearby.acceptConnection(
+      endpointId,
+      onPayLoadRecieved: _onPayloadReceived,
+    );
   }
 
   void _onConnectionResult(String endpointId, Status status) {
     if (status == Status.CONNECTED) {
-      final peer = _nearbyPeers[endpointId] ?? Peer(id: endpointId, name: 'Unknown');
-      peer.isConnected = true;
-      peer.lastSeen = DateTime.now();
-
-      _connectedPeers[endpointId] = peer;
-      _nearbyPeers.remove(endpointId);
-      _storageService.savePeer(peer);
-      _storageService.updatePeerStatus(endpointId, true);
-
-      _startHeartbeat(endpointId);
-      _retryCount.remove(endpointId);
-      _updatePeersList();
+      debugPrint('Connected to: $endpointId');
+      
+      _connectedPeers[endpointId] = Peer(
+        id: endpointId,
+        name: 'Peer',
+        lastSeen: DateTime.now(),
+        isConnected: true,
+      );
+      
+      _updatePeers();
     }
   }
 
   void _onDisconnected(String endpointId) {
-    final peer = _connectedPeers[endpointId];
-    if (peer != null) {
-      peer.isConnected = false;
-      _storageService.updatePeerStatus(endpointId, false);
-    }
-
-    _heartbeats[endpointId]?.cancel();
-    _heartbeats.remove(endpointId);
+    debugPrint('Disconnected from: $endpointId');
     _connectedPeers.remove(endpointId);
-
-    _retryConnection(endpointId);
-    _updatePeersList();
+    _updatePeers();
   }
 
-  Future<void> _onPayloadReceived(String endpointId, Payload payload) async {
+  void _onPayloadReceived(String endpointId, Payload payload) {
     if (payload.type == PayloadType.BYTES && payload.bytes != null) {
-      final content = String.fromCharCodes(payload.bytes!);
-
       try {
-        final decrypted = await _cryptoService.decryptMessage(content, endpointId);
-
-        _messageController.add({
-          'senderId': endpointId,
-          'content': decrypted,
-          'timestamp': DateTime.now().millisecondsSinceEpoch,
-          'type': 'text',
-        });
-
-        final peer = _connectedPeers[endpointId];
-        if (peer != null) {
-          peer.lastSeen = DateTime.now();
-        }
+        final data = json.decode(utf8.decode(payload.bytes!));
+        final message = Message.fromMap(data);
+        _messageController.add(message);
       } catch (e) {
-        // Handle typing indicator or other non-encrypted messages
-        if (content.contains('typing')) {
-          _typingController.add({
-            'peerId': endpointId,
-            'isTyping': content.contains('true'),
-          });
-        }
+        debugPrint('Error decoding message: $e');
       }
-    } else if (payload.type == PayloadType.FILE) {
-      // Handle file received
     }
   }
 
-  Future<void> _exchangeKeys(String peerId) async {
+  Future<void> sendMessage(Message message, String peerId) async {
     try {
-      final publicKey = await _cryptoService.getPublicKey();
-      // Send public key to peer and receive their public key
-      // Derive shared secret
+      final data = json.encode(message.toMap());
+      final bytes = utf8.encode(data);
+
+      await _nearby.sendBytesPayload(peerId, bytes);
     } catch (e) {
-      // Error handling
+      debugPrint('Error sending message: $e');
+      rethrow;
     }
   }
 
-  void _startHeartbeat(String peerId) {
-    _heartbeats[peerId]?.cancel();
-    _heartbeats[peerId] = Timer.periodic(const Duration(seconds: 30), (timer) {
-      final peer = _connectedPeers[peerId];
-      if (peer != null && peer.isConnected) {
-        sendMessage(peerId: peerId, message: '__heartbeat__');
-      } else {
-        timer.cancel();
-      }
-    });
+  void _updatePeers() {
+    _peerController.add(_connectedPeers.values.toList());
   }
 
-  void _retryConnection(String peerId) {
-    final count = _retryCount[peerId] ?? 0;
-    if (count < 3) {
-      _retryCount[peerId] = count + 1;
-      Future.delayed(Duration(seconds: count * 2), () {
-        connectToPeer(peerId);
-      });
-    }
-  }
+  List<Peer> get connectedPeers => _connectedPeers.values.toList();
 
-  void _updatePeersList() {
-    _peersController.add({
-      'connected': _connectedPeers.values.toList(),
-      'nearby': _nearbyPeers.values.toList(),
-    });
+  Future<void> dispose() async {
+    await _nearby.stopAdvertising();
+    await _nearby.stopDiscovery();
+    await _nearby.stopAllEndpoints();
+    
+    await _messageController.close();
+    await _peerController.close();
   }
-
-  void dispose() {
-    stopAdvertising();
-    stopDiscovery();
-    for (final timer in _heartbeats.values) {
-      timer.cancel();
-    }
-    _messageController.close();
-    _typingController.close();
-    _connectionStatusController.close();
-    _peersController.close();
-  }
-}
-
-enum ConnectionStatus {
-  disconnected,
-  connecting,
-  connected,
-  reconnecting,
-  error,
 }
