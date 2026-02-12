@@ -1,10 +1,75 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/connection_provider.dart';
+import '../../providers/settings_provider.dart';
 import 'chat_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkUserName();
+    });
+  }
+
+  Future<void> _checkUserName() async {
+    final settingsProvider = context.read<SettingsProvider>();
+    if (settingsProvider.userName.isEmpty) {
+      _showUserNameDialog();
+    } else {
+      await _initializeConnection(settingsProvider.userName);
+    }
+  }
+
+  Future<void> _initializeConnection(String userName) async {
+    final connectionProvider = context.read<ConnectionProvider>();
+    if (!connectionProvider.isInitialized) {
+      await connectionProvider.initialize(userName);
+    }
+  }
+
+  Future<void> _showUserNameDialog() async {
+    final nameController = TextEditingController();
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Enter Your Name'),
+          content: TextField(
+            controller: nameController,
+            decoration: const InputDecoration(hintText: 'Your Name'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                final userName = nameController.text.trim();
+                if (userName.isNotEmpty) {
+                  final settingsProvider = context.read<SettingsProvider>();
+                  await settingsProvider.setUserName(userName);
+                  await _initializeConnection(userName);
+                  Navigator.of(context).pop();
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please enter a name')),
+                  );
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,17 +112,19 @@ class HomeScreen extends StatelessWidget {
             itemCount: peers.length,
             itemBuilder: (context, index) {
               final peer = peers[index];
-              
+
               return ListTile(
                 leading: CircleAvatar(
                   backgroundColor: peer.isConnected ? Colors.green : Colors.grey,
-                  child: Text(peer.name[0].toUpperCase(), style: const TextStyle(color: Colors.white)),
+                  child: Text(peer.name.isNotEmpty ? peer.name[0].toUpperCase() : '', style: const TextStyle(color: Colors.white)),
                 ),
                 title: Text(peer.name),
                 subtitle: Text(peer.isConnected ? 'Connected' : 'Last seen: ${_formatTime(peer.lastSeen)}'),
                 trailing: peer.isConnected ? const Icon(Icons.circle, color: Colors.green, size: 12) : null,
                 onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => ChatScreen(peer: peer)));
+                  if (peer.isConnected) {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => ChatScreen(peer: peer)));
+                  }
                 },
               );
             },
