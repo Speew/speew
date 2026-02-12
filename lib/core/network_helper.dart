@@ -10,7 +10,7 @@ class NetworkHelper {
   static Future<bool> hasConnection() async {
     try {
       final result = await _connectivity.checkConnectivity();
-      return result != ConnectivityResult.none;
+      return !_isDisconnected(result);
     } catch (e) {
       return false;
     }
@@ -20,7 +20,7 @@ class NetworkHelper {
   static Future<bool> hasWifi() async {
     try {
       final result = await _connectivity.checkConnectivity();
-      return result == ConnectivityResult.wifi;
+      return result.contains(ConnectivityResult.wifi);
     } catch (e) {
       return false;
     }
@@ -30,36 +30,32 @@ class NetworkHelper {
   static Future<bool> hasMobileData() async {
     try {
       final result = await _connectivity.checkConnectivity();
-      return result == ConnectivityResult.mobile;
+      return result.contains(ConnectivityResult.mobile);
     } catch (e) {
       return false;
     }
   }
 
   /// Listen to connectivity changes
-  static Stream<ConnectivityResult> get onConnectivityChanged =>
+  static Stream<List<ConnectivityResult>> get onConnectivityChanged =>
       _connectivity.onConnectivityChanged;
 
   /// Get connection type as string
   static Future<String> getConnectionType() async {
     try {
-      final result = await _connectivity.checkConnectivity();
-      switch (result) {
-        case ConnectivityResult.wifi:
-          return 'WiFi';
-        case ConnectivityResult.mobile:
-          return 'Mobile Data';
-        case ConnectivityResult.ethernet:
-          return 'Ethernet';
-        case ConnectivityResult.bluetooth:
-          return 'Bluetooth';
-        case ConnectivityResult.none:
-          return 'No Connection';
-        default:
-          return 'Unknown';
-      }
+      final results = await _connectivity.checkConnectivity();
+      if (_isDisconnected(results)) return 'No Connection';
+      if (results.contains(ConnectivityResult.ethernet)) return 'Ethernet';
+      if (results.contains(ConnectivityResult.wifi)) return 'WiFi';
+      if (results.contains(ConnectivityResult.mobile)) return 'Mobile Data';
+      if (results.contains(ConnectivityResult.bluetooth)) return 'Bluetooth';
+      return 'Unknown';
     } catch (e) {
       return 'Error';
     }
+  }
+
+  static bool _isDisconnected(List<ConnectivityResult> results) {
+    return results.isEmpty || (results.length == 1 && results.first == ConnectivityResult.none);
   }
 }

@@ -20,14 +20,17 @@ class GroupService {
 
   final Map<String, Group> _groups = {};
   final Map<String, SecretKey> _groupKeys = {};
+  final Map<String, List<GroupMessage>> _groupMessages = {};
 
   final StreamController<Group> _groupsController = StreamController<Group>.broadcast();
+  final StreamController<GroupMessage> _messagesController = StreamController<GroupMessage>.broadcast();
 
   Stream<Group> get groupsStream => _groupsController.stream;
+  Stream<GroupMessage> get messagesStream => _messagesController.stream;
   List<Group> get groups => _groups.values.toList();
 
   Future<void> loadGroups() async {
-    final groups = await _storageService.getAllGroups();
+    final groups = await _storageService.getGroups();
     for (final group in groups) {
       _groups[group.id] = group;
     }
@@ -40,17 +43,17 @@ class GroupService {
     String? description,
   }) async {
     if (!memberIds.contains(creatorId)) {
-      memberIds = [creatorId, ...memberIds];
+      memberIds.insert(0, creatorId);
     }
 
     final groupId = 'group_${DateTime.now().millisecondsSinceEpoch}';
-    final groupKey = await _cryptoService.generateKey();
+    final groupKey = await _cryptoService.generateSecretKey();
 
     final group = Group(
       id: groupId,
       name: name,
       description: description,
-      adminId: creatorId,
+      creatorId: creatorId,
       memberIds: memberIds,
       createdAt: DateTime.now(),
       groupKey: await _encodeKey(groupKey),
@@ -69,22 +72,11 @@ class GroupService {
 
   Future<bool> addMember(String groupId, String memberId, String requesterId) async {
     final group = _groups[groupId];
-    if (group == null) return false;
+    if (group == null || !group.isAdmin(requesterId) || group.isMember(memberId)) {
+      return false;
+    }
 
-    if (group.adminId != requesterId) return false;
-
-    if (group.memberIds.contains(memberId)) return false;
-
-    final updatedGroup = Group(
-      id: group.id,
-      name: group.name,
-      description: group.description,
-      adminId: group.adminId,
-      memberIds: [...group.memberIds, memberId],
-      createdAt: group.createdAt,
-      groupKey: group.groupKey,
-    );
-
+    final updatedGroup = group.copyWith(memberIds: [...group.memberIds, memberId]);
     _groups[groupId] = updatedGroup;
     await _storageService.updateGroup(updatedGroup);
 
@@ -100,23 +92,12 @@ class GroupService {
 
   Future<bool> removeMember(String groupId, String memberId, String requesterId) async {
     final group = _groups[groupId];
-    if (group == null) return false;
-
-    if (group.adminId != requesterId) return false;
-
-    if (memberId == group.adminId) return false;
+    if (group == null || !group.isAdmin(requesterId) || memberId == group.creatorId) {
+      return false;
+    }
 
     final updatedMembers = group.memberIds.where((id) => id != memberId).toList();
-
-    final updatedGroup = Group(
-      id: group.id,
-      name: group.name,
-      description: group.description,
-      adminId: group.adminId,
-      memberIds: updatedMembers,
-      createdAt: group.createdAt,
-      groupKey: group.groupKey,
-    );
+    final updatedGroup = group.copyWith(memberIds: updatedMembers);
 
     _groups[groupId] = updatedGroup;
     await _storageService.updateGroup(updatedGroup);
@@ -130,18 +111,16 @@ class GroupService {
     final group = _groups[groupId];
     if (group == null) return false;
 
-    if (group.adminId == memberId) {
-      return await deleteGroup(groupId, memberId);
+    if (group.creatorId == memberId) {
+      return deleteGroup(groupId, memberId);
     }
 
-    return await removeMember(groupId, memberId, group.adminId);
+    return removeMember(groupId, memberId, group.creatorId);
   }
 
   Future<bool> deleteGroup(String groupId, String requesterId) async {
     final group = _groups[groupId];
-    if (group == null) return false;
-
-    if (group.adminId != requesterId) return false;
+    if (group == null || !group.isAdmin(requesterId)) return false;
 
     _groups.remove(groupId);
     _groupKeys.remove(groupId);
@@ -157,19 +136,11 @@ class GroupService {
     String? requesterId,
   }) async {
     final group = _groups[groupId];
-    if (group == null) return false;
+    if (group == null || (requesterId != null && !group.isAdmin(requesterId))) {
+      return false;
+    }
 
-    if (requesterId != null && group.adminId != requesterId) return false;
-
-    final updatedGroup = Group(
-      id: group.id,
-      name: name ?? group.name,
-      description: description ?? group.description,
-      adminId: group.adminId,
-      memberIds: group.memberIds,
-      createdAt: group.createdAt,
-      groupKey: group.groupKey,
-    );
+    final updatedGroup = group.copyWith(name: name, description: description);
 
     _groups[groupId] = updatedGroup;
     await _storageService.updateGroup(updatedGroup);
@@ -190,15 +161,13 @@ class GroupService {
     final groupKey = _groupKeys[groupId];
     if (groupKey == null) return;
 
-    final encrypted = await _cryptoService.encrypt(content, groupKey);
+    final encrypted = await _cryptoService.encryptString(content, groupKey);
+
+    final message = 'GROUP_MSG:$groupId:$encrypted';
 
     for (final memberId in group.memberIds) {
       if (memberId != senderId) {
-        await _p2pService.sendMessage(
-          peerId: memberId,
-          message: encrypted,
-          isGroup: true,
-        );
+        await _p2pService.sendMessage(memberId, message, isGroup: true);
       }
     }
   }
@@ -210,18 +179,14 @@ class GroupService {
   }
 
   Future<void> _sendGroupKeyTo(String memberId, String groupId, SecretKey key) async {
-    final keyBytes = await key.extractBytes();
     final encoded = await _encodeKey(key);
-
-    await _p2pService.sendMessage(
-      peerId: memberId,
-      message: 'GROUP_KEY:$groupId:$encoded',
-    );
+    final message = 'GROUP_KEY:$groupId:$encoded';
+    await _p2pService.sendMessage(memberId, message);
   }
 
   Future<String> _encodeKey(SecretKey key) async {
     final bytes = await key.extractBytes();
-    return bytes.join(',');
+    return bytes.toString();
   }
 
   Group? getGroup(String groupId) {
@@ -229,63 +194,18 @@ class GroupService {
   }
 
   List<Group> getUserGroups(String userId) {
-    return _groups.values.where((g) => g.memberIds.contains(userId)).toList();
+    return _groups.values.where((g) => g.isMember(userId)).toList();
   }
 
   bool isGroupAdmin(String groupId, String userId) {
     final group = _groups[groupId];
-    return group?.adminId == userId;
-  }
-
-  bool isGroupMember(String groupId, String userId) {
-    final group = _groups[groupId];
-    return group?.memberIds.contains(userId) ?? false;
-  }
-
-  void dispose() {
-    _groups.clear();
-    _groupKeys.clear();
-    _groupsController.close();
-  }
-}
-    if (group == null) return false;
-
-    if (!group.isAdmin(requesterId)) {
-      DebugUtils.log('Only admin can remove members', tag: 'GROUP');
-      return false;
-    }
-
-    if (memberId == group.creatorId) {
-      DebugUtils.log('Cannot remove group creator', tag: 'GROUP');
-      return false;
-    }
-
-    final updatedMembers = group.memberIds.where((id) => id != memberId).toList();
-    final updatedGroup = group.copyWith(memberIds: updatedMembers);
-
-    _groups[groupId] = updatedGroup;
-    _groupsController.add(updatedGroup);
-
-    final systemMsg = GroupMessage(
-      id: _generateMessageId(),
-      groupId: groupId,
-      senderId: 'system',
-      content: 'Membro removido do grupo',
-      timestamp: DateTime.now(),
-      type: MessageType.system,
-    );
-    
-    addMessage(systemMsg);
-    
-    DebugUtils.log('Member removed from group: $memberId', tag: 'GROUP');
-    return true;
+    return group?.isAdmin(userId) ?? false;
   }
 
   void addMessage(GroupMessage message) {
     if (!_groupMessages.containsKey(message.groupId)) {
       _groupMessages[message.groupId] = [];
     }
-
     _groupMessages[message.groupId]!.add(message);
     _messagesController.add(message);
   }
@@ -294,70 +214,13 @@ class GroupService {
     return _groupMessages[groupId] ?? [];
   }
 
-  Group? getGroup(String groupId) {
-    return _groups[groupId];
-  }
-
-  bool isMember(String groupId, String userId) {
-    final group = _groups[groupId];
-    return group?.isMember(userId) ?? false;
-  }
-
-  List<Group> getUserGroups(String userId) {
-    return _groups.values
-        .where((group) => group.isMember(userId))
-        .toList();
-  }
-
-  bool updateGroupName(String groupId, String newName, String requesterId) {
-    final group = _groups[groupId];
-    if (group == null) return false;
-
-    if (!group.isAdmin(requesterId)) {
-      DebugUtils.log('Only admin can update group name', tag: 'GROUP');
-      return false;
-    }
-
-    final updatedGroup = group.copyWith(name: newName);
-    _groups[groupId] = updatedGroup;
-    _groupsController.add(updatedGroup);
-
-    return true;
-  }
-
-  bool leaveGroup(String groupId, String userId) {
-    final group = _groups[groupId];
-    if (group == null) return false;
-
-    if (group.creatorId == userId) {
-      DebugUtils.log('Creator cannot leave group', tag: 'GROUP');
-      return false;
-    }
-
-    return removeMember(groupId, userId, group.creatorId);
-  }
-
-  bool deleteGroup(String groupId, String requesterId) {
-    final group = _groups[groupId];
-    if (group == null) return false;
-
-    if (!group.isAdmin(requesterId)) {
-      DebugUtils.log('Only admin can delete group', tag: 'GROUP');
-      return false;
-    }
-
-    _groups.remove(groupId);
-    _groupMessages.remove(groupId);
-    
-    DebugUtils.log('Group deleted: $groupId', tag: 'GROUP');
-    return true;
-  }
-
   String _generateMessageId() {
     return 'msg_${DateTime.now().millisecondsSinceEpoch}';
   }
 
   void dispose() {
+    _groups.clear();
+    _groupKeys.clear();
     _groupsController.close();
     _messagesController.close();
   }

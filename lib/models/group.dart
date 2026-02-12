@@ -3,18 +3,22 @@ import 'message.dart';
 class Group {
   final String id;
   final String name;
+  final String? description;
   final String creatorId;
   final List<String> memberIds;
   final DateTime createdAt;
   final String? avatarPath;
+  final String? groupKey;
 
   Group({
     required this.id,
     required this.name,
+    this.description,
     required this.creatorId,
     required this.memberIds,
     required this.createdAt,
     this.avatarPath,
+    this.groupKey,
   });
 
   int get memberCount => memberIds.length;
@@ -25,10 +29,12 @@ class Group {
     return {
       'id': id,
       'name': name,
+      'description': description,
       'creator_id': creatorId,
       'member_ids': memberIds.join(','),
       'created_at': createdAt.millisecondsSinceEpoch,
       'avatar_path': avatarPath,
+      'group_key': groupKey,
     };
   }
 
@@ -37,30 +43,36 @@ class Group {
     return Group(
       id: map['id'] as String? ?? '',
       name: map['name'] as String? ?? 'Unnamed Group',
+      description: map['description'] as String?,
       creatorId: map['creator_id'] as String? ?? '',
       memberIds: memberIdsStr.isNotEmpty ? memberIdsStr.split(',') : [],
       createdAt: map['created_at'] != null
           ? DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int)
           : DateTime.now(),
       avatarPath: map['avatar_path'] as String?,
+      groupKey: map['group_key'] as String?,
     );
   }
 
   Group copyWith({
     String? id,
     String? name,
+    String? description,
     String? creatorId,
     List<String>? memberIds,
     DateTime? createdAt,
     String? avatarPath,
+    String? groupKey,
   }) {
     return Group(
       id: id ?? this.id,
       name: name ?? this.name,
+      description: description ?? this.description,
       creatorId: creatorId ?? this.creatorId,
       memberIds: memberIds ?? this.memberIds,
       createdAt: createdAt ?? this.createdAt,
       avatarPath: avatarPath ?? this.avatarPath,
+      groupKey: groupKey ?? this.groupKey,
     );
   }
 
@@ -76,7 +88,7 @@ class GroupMessage {
   final DateTime timestamp;
   final MessageType type;
   final String? imageUrl;
-  final Map<String, bool> deliveredTo; 
+  final Map<String, bool> deliveredTo;
 
   GroupMessage({
     required this.id,
@@ -105,7 +117,7 @@ class GroupMessage {
   factory GroupMessage.fromMap(Map<String, dynamic> map) {
     final deliveredToStr = map['delivered_to'] as String? ?? '';
     final deliveredTo = <String, bool>{};
-    
+
     if (deliveredToStr.isNotEmpty) {
       for (final entry in deliveredToStr.split(',')) {
         final parts = entry.split(':');
