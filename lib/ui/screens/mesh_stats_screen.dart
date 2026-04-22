@@ -153,8 +153,8 @@ class MeshStatisticsScreen extends StatelessWidget {
             if (routes.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(16),
-                child: const Center(
-                  child: const Text(
+                child: Center(
+                  child: Text(
                     'Nenhuma rota conhecida',
                     style: TextStyle(color: Colors.grey),
                   ),

@@ -36,7 +36,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: widget.isMe ? Colors.blue : Colors.grey[300],
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: const BorderRadius.all(Radius.circular(20)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -193,7 +193,7 @@ class _VoiceRecorderButtonState extends State<VoiceRecorderButton> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: Colors.red[100],
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: const BorderRadius.all(Radius.circular(24)),
         ),
         child: Row(
           children: [

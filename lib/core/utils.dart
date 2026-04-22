@@ -41,6 +41,10 @@ class DateTimeUtils {
     return DateFormat(AppConstants.dateFormatShort).format(dateTime);
   }
 
+  static String formatSimpleTime(DateTime dateTime) {
+    return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+  }
+
   static bool isSameDay(DateTime date1, DateTime date2) {
     return date1.year == date2.year &&
         date1.month == date2.month &&

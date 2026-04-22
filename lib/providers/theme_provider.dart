@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/theme/app_theme.dart';
 
 class ThemeProvider with ChangeNotifier {
   final SharedPreferences _prefs;
@@ -62,5 +63,11 @@ class ThemeProvider with ChangeNotifier {
     } else {
       await setThemeMode(ThemeMode.light);
     }
+  }
+  
+  ThemeData getTheme() {
+    return _themeMode == ThemeMode.dark 
+      ? AppTheme.darkTheme 
+      : AppTheme.lightTheme;
   }
 }

@@ -113,7 +113,7 @@ class TypingIndicatorBubble extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.grey[300],
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: const BorderRadius.all(Radius.circular(20)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

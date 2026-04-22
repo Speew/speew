@@ -51,7 +51,7 @@ class AppTheme {
     cardTheme: CardTheme(
       elevation: 2,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: const BorderRadius.all(Radius.circular(12)),
       ),
       color: Colors.white,
     ),
@@ -61,19 +61,19 @@ class AppTheme {
       filled: true,
       fillColor: const Color(0xFFF5F5F5),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: const BorderRadius.all(Radius.circular(12)),
         borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: const BorderRadius.all(Radius.circular(12)),
         borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: const BorderRadius.all(Radius.circular(12)),
         borderSide: const BorderSide(color: primaryColor, width: 2),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: const BorderRadius.all(Radius.circular(12)),
         borderSide: const BorderSide(color: errorColor, width: 1),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -87,7 +87,7 @@ class AppTheme {
         elevation: 2,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: const BorderRadius.all(Radius.circular(12)),
         ),
         textStyle: const TextStyle(
           fontSize: 16,
@@ -134,7 +134,7 @@ class AppTheme {
     // Dialog
     dialogTheme: DialogTheme(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: const BorderRadius.all(Radius.circular(16)),
       ),
       elevation: 8,
     ),
@@ -150,7 +150,7 @@ class AppTheme {
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: const BorderRadius.all(Radius.circular(20)),
       ),
     ),
     
@@ -253,7 +253,7 @@ class AppTheme {
     cardTheme: CardTheme(
       elevation: 2,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: const BorderRadius.all(Radius.circular(12)),
       ),
       color: const Color(0xFF1E1E1E),
     ),
@@ -263,19 +263,19 @@ class AppTheme {
       filled: true,
       fillColor: const Color(0xFF2C2C2C),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: const BorderRadius.all(Radius.circular(12)),
         borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: const BorderRadius.all(Radius.circular(12)),
         borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: const BorderRadius.all(Radius.circular(12)),
         borderSide: const BorderSide(color: primaryLight, width: 2),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: const BorderRadius.all(Radius.circular(12)),
         borderSide: const BorderSide(color: errorColor, width: 1),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -289,7 +289,7 @@ class AppTheme {
         elevation: 2,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: const BorderRadius.all(Radius.circular(12)),
         ),
         textStyle: const TextStyle(
           fontSize: 16,
@@ -337,7 +337,7 @@ class AppTheme {
     dialogTheme: DialogTheme(
       backgroundColor: const Color(0xFF1E1E1E),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: const BorderRadius.all(Radius.circular(16)),
       ),
       elevation: 8,
     ),
@@ -353,7 +353,7 @@ class AppTheme {
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: const BorderRadius.all(Radius.circular(20)),
       ),
     ),
     

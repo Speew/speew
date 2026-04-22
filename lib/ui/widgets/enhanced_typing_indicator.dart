@@ -267,7 +267,7 @@ class EnhancedTypingBubble extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: bubbleColor ?? (isDark ? Colors.grey[800] : Colors.grey[300]),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: const BorderRadius.all(Radius.circular(20)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
